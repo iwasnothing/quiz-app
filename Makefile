@@ -17,7 +17,7 @@ DOCKER_COMPOSE := $(shell command -v docker-compose 2> /dev/null || echo "docker
 # TARGETS
 # ==============================================================================
 
-.PHONY: help all build build-no-cache up down restart logs clean prune shell-backend shell-frontend
+.PHONY: help all build build-no-cache build-backend build-frontend up down restart logs clean prune shell-backend shell-frontend
 
 # Default target: Show help
 help:
@@ -26,6 +26,8 @@ help:
 	@echo "----------------------------------------------------------------------"
 	@echo "  make build           Build all images (using cache)"
 	@echo "  make build-no-cache  Rebuild all images from scratch"
+	@echo "  make build-backend   Build only the backend image"
+	@echo "  make build-frontend  Build only the frontend image"
 	@echo "  make up              Start the full stack (detached mode)"
 	@echo "  make down            Stop and remove containers"
 	@echo "  make restart         Restart all services"
@@ -47,6 +49,16 @@ build:
 build-no-cache:
 	@echo "Rebuilding images from scratch..."
 	$(DOCKER_COMPOSE) build --no-cache
+
+# Build only the backend image
+build-backend:
+	@echo "Building backend image..."
+	docker build -t $(BACKEND_IMAGE_NAME):$(TAG) ./backend
+
+# Build only the frontend image
+build-frontend:
+	@echo "Building frontend image..."
+	docker build -t $(FRONTEND_IMAGE_NAME):$(TAG) ./frontend
 
 # Start the application in detached mode
 up:
