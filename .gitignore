@@ -43,12 +43,25 @@ env.bak/
 venv.bak/
 .venv/
 
-# Node.js / Next.js (root level)
+# Node.js / Next.js
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
+
+# Next.js build outputs (frontend directory)
+frontend/.next/
+frontend/out/
+frontend/build/
+frontend/.vercel
+frontend/*.tsbuildinfo
+frontend/next-env.d.ts
+frontend/.pnp
+frontend/.pnp.*
+frontend/coverage/
+
+# Note: Next.js source files (.tsx, .ts, .jsx, .js, .css, etc.) are tracked
 
 # Database files
 *.db
