@@ -31,8 +31,10 @@ RUN ARCH=$(uname -m) && \
 # Add conda to PATH
 ENV PATH=/opt/conda/bin:$PATH
 
-# Install faiss-gpu via conda
-RUN conda install -y -c conda-forge faiss-gpu && \
+# Accept conda Terms of Service and install faiss-gpu via conda
+RUN conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/main && \
+    conda tos accept --override-channels --channel https://repo.anaconda.com/pkgs/r && \
+    conda install -y -c conda-forge faiss-gpu && \
     conda clean -afy
 
 # Copy requirements and install Python packages
