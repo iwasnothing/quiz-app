@@ -9,7 +9,7 @@ from langchain_community.document_loaders import (
     DirectoryLoader,
     TextLoader,
 )
-from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.chains import RetrievalQA
 from langchain_core.output_parsers import JsonOutputParser
 from markitdown import MarkItDown
