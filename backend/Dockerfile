@@ -12,9 +12,28 @@ RUN apt-get update && apt-get install -y \
 # Upgrade pip
 RUN pip install --upgrade pip
 
-# Install faiss-gpu via conda (not available on PyPI)
-# Note: The base image already has conda in PATH
-RUN conda install -y -c conda-forge faiss-gpu
+# Install miniconda for faiss-gpu (not available on PyPI)
+RUN ARCH=$(uname -m) && \
+    if [ "$ARCH" = "x86_64" ]; then \
+        MINICONDA_ARCH="x86_64"; \
+    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
+        MINICONDA_ARCH="aarch64"; \
+    else \
+        echo "Unsupported architecture: $ARCH" && exit 1; \
+    fi && \
+    apt-get update && apt-get install -y wget && \
+    wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${MINICONDA_ARCH}.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/conda && \
+    rm /tmp/miniconda.sh && \
+    /opt/conda/bin/conda clean -afy && \
+    apt-get clean && rm -rf /var/lib/apt/lists/*
+
+# Add conda to PATH
+ENV PATH=/opt/conda/bin:$PATH
+
+# Install faiss-gpu via conda
+RUN conda install -y -c conda-forge faiss-gpu && \
+    conda clean -afy
 
 # Copy requirements and install Python packages
 COPY requirements.txt .
