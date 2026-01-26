@@ -3,6 +3,7 @@ uvicorn
 python-multipart
 pydantic
 python-dotenv
+requests
 numpy
 langchain
 langchain-core

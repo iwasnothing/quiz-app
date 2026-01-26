@@ -6,7 +6,7 @@ from database import (
     get_concepts_from_question_bank, 
     query_question_bank_chunks_by_topics,
     query_teaching_material_chunks_by_topics,
-    embeddings,
+    get_embeddings,
     settings
 )
 from llm_prompts import llm, quiz_parser, GENERATE_PROMPT, REFINE_PROMPT
@@ -215,31 +215,42 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
         # Use concepts as query for vector similarity search
         concept_query = " ".join(concepts[:10]) if concepts else topic
         
-        # Embed the query
-        query_embedding = embeddings.embed_query(concept_query)
-        
-        # Calculate similarity scores for each candidate document
-        # Embed all candidate documents
-        candidate_texts = [doc.page_content for doc in candidate_docs]
-        candidate_embeddings = embeddings.embed_documents(candidate_texts)
-        
-        # Calculate cosine similarity (simple dot product since embeddings are normalized)
-        similarities = []
-        query_embedding_np = np.array(query_embedding)
-        for candidate_emb in candidate_embeddings:
-            candidate_emb_np = np.array(candidate_emb)
-            # Cosine similarity
-            similarity = np.dot(query_embedding_np, candidate_emb_np) / (
-                np.linalg.norm(query_embedding_np) * np.linalg.norm(candidate_emb_np)
-            )
-            similarities.append(similarity)
-        
-        # Sort by similarity and get top k
-        doc_similarities = list(zip(candidate_docs, similarities))
-        doc_similarities.sort(key=lambda x: x[1], reverse=True)
-        teaching_material_docs = [doc for doc, score in doc_similarities[:10]]
-        
-        print(f"Selected top {len(teaching_material_docs)} teaching_material chunks by similarity to concepts")
+        # Try to use embeddings for similarity search, fallback to simple text matching if connection fails
+        try:
+            embeddings_obj = get_embeddings()
+            if embeddings_obj is None:
+                raise ValueError("Embeddings not available")
+            
+            # Embed the query
+            query_embedding = embeddings_obj.embed_query(concept_query)
+            
+            # Calculate similarity scores for each candidate document
+            # Embed all candidate documents
+            candidate_texts = [doc.page_content for doc in candidate_docs]
+            candidate_embeddings = embeddings_obj.embed_documents(candidate_texts)
+            
+            # Calculate cosine similarity (simple dot product since embeddings are normalized)
+            similarities = []
+            query_embedding_np = np.array(query_embedding)
+            for candidate_emb in candidate_embeddings:
+                candidate_emb_np = np.array(candidate_emb)
+                # Cosine similarity
+                similarity = np.dot(query_embedding_np, candidate_emb_np) / (
+                    np.linalg.norm(query_embedding_np) * np.linalg.norm(candidate_emb_np)
+                )
+                similarities.append(similarity)
+            
+            # Sort by similarity and get top k
+            doc_similarities = list(zip(candidate_docs, similarities))
+            doc_similarities.sort(key=lambda x: x[1], reverse=True)
+            teaching_material_docs = [doc for doc, score in doc_similarities[:10]]
+            
+            print(f"Selected top {len(teaching_material_docs)} teaching_material chunks by similarity to concepts")
+        except Exception as e:
+            print(f"⚠ Warning: Embedding similarity search failed: {e}")
+            print(f"  Falling back to using all candidate chunks (no similarity ranking)")
+            # Fallback: use all candidate docs without similarity ranking
+            teaching_material_docs = candidate_docs[:10]
     else:
         # Fallback: Use vector store directly if SQLite doesn't have results
         print("No teaching_material found in SQLite, trying vector store directly...")
@@ -264,7 +275,13 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
                     if doc.metadata.get("doc_type") == "teaching_material" or doc.metadata.get("doc_type") is None
                 ]
             except Exception as e:
-                print(f"Filtered search failed: {e}, trying without filter...")
+                error_msg = str(e)
+                # Check if it's a connection error
+                if "Connection" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower():
+                    print(f"⚠ Connection error to embedding service: {error_msg}")
+                    print(f"  Check that embedding service is running at {settings.EMBEDDING_BASE_URL}")
+                else:
+                    print(f"⚠ Filtered search failed: {error_msg}, trying without filter...")
                 try:
                     retriever = vector_store.as_retriever(search_kwargs={"k": 10})
                     teaching_material_docs = retriever.invoke(concept_query)
@@ -274,7 +291,13 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
                         if doc.metadata.get("doc_type") == "teaching_material" or doc.metadata.get("doc_type") is None
                     ]
                 except Exception as e2:
-                    print(f"Vector store retrieval failed: {e2}. Generating without context.")
+                    error_msg2 = str(e2)
+                    if "Connection" in error_msg2 or "connection" in error_msg2.lower() or "refused" in error_msg2.lower():
+                        print(f"⚠ Vector store retrieval failed due to connection error: {error_msg2}")
+                        print(f"  Check that embedding service is running at {settings.EMBEDDING_BASE_URL}")
+                    else:
+                        print(f"⚠ Vector store retrieval failed: {error_msg2}")
+                    print("  Generating without context.")
                     teaching_material_docs = []
     
     if teaching_material_docs:
@@ -313,7 +336,8 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
     elif format_type == "Short Answer":
         format_constraint = "IMPORTANT: All questions must be Short Answer format (no multiple choice options)."
     
-    result = chain.invoke({
+    try:
+        result = chain.invoke({
         "context": context_text,
         "few_shot_examples": few_shot_text,
         "few_shot_instruction": few_shot_instruction,
@@ -323,7 +347,13 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
         "difficulty": difficulty,
         "num_questions": count,
         "format_instructions": parser.get_format_instructions() + "\n\n" + format_constraint
-    })
+        })
+    except Exception as e:
+        error_msg = str(e)
+        if "Connection" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower():
+            print(f"⚠ Connection error to LLM service: {error_msg}")
+            print(f"  Check that LLM service is running at {settings.LLM_BASE_URL}")
+        raise
     
     # Convert dict result to QuizSchema object
     # The parser returns a dict, but we need a QuizSchema object

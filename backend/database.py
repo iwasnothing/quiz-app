@@ -5,26 +5,66 @@ from pathlib import Path
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import FAISS
 from config import settings
+import requests
 
 # --- Embeddings ---
-embeddings = OpenAIEmbeddings(
-    model=settings.EMBEDDING_MODEL,
-    base_url=settings.EMBEDDING_BASE_URL,
-    api_key=settings.EMBEDDING_API_KEY,
-)
+# Initialize embeddings with error handling
+_embeddings = None
+
+def get_embeddings():
+    """Get embeddings instance, with lazy initialization and connection testing."""
+    global _embeddings
+    if _embeddings is None:
+        try:
+            # Test connection before initializing
+            test_url = settings.EMBEDDING_BASE_URL.replace('/v1', '/health') if '/v1' in settings.EMBEDDING_BASE_URL else f"{settings.EMBEDDING_BASE_URL}/health"
+            try:
+                response = requests.get(test_url, timeout=2)
+                if response.status_code == 200:
+                    print(f"✓ Embedding service is reachable at {settings.EMBEDDING_BASE_URL}")
+            except requests.exceptions.RequestException as e:
+                print(f"⚠ Warning: Cannot reach embedding service at {settings.EMBEDDING_BASE_URL}: {e}")
+                print(f"  Attempting to initialize anyway - connection will be tested on first use")
+            
+            _embeddings = OpenAIEmbeddings(
+                model=settings.EMBEDDING_MODEL,
+                base_url=settings.EMBEDDING_BASE_URL,
+                api_key=settings.EMBEDDING_API_KEY,
+            )
+        except Exception as e:
+            print(f"⚠ Warning: Failed to initialize embeddings: {e}")
+            raise
+    return _embeddings
+
+# For backward compatibility, create embeddings at module level but with error handling
+try:
+    embeddings = get_embeddings()
+except Exception as e:
+    print(f"⚠ Warning: Embeddings initialization failed: {e}")
+    # Create a placeholder that will raise errors when used
+    embeddings = None
 
 # --- Vector Store (FAISS) ---
 def get_faiss_vectorstore(docs=None):
     """Get or create FAISS vectorstore."""
     faiss_path = Path(settings.FAISS_DIR)
     
+    # Get embeddings instance (with error handling)
+    emb = get_embeddings()
+    if emb is None:
+        raise ValueError("Embeddings not available. Cannot load FAISS vectorstore.")
+    
     if faiss_path.exists():
         print(f"Loading existing FAISS index from {faiss_path}")
-        vectorstore = FAISS.load_local(
-            str(faiss_path),
-            embeddings,
-            allow_dangerous_deserialization=True,
-        )
+        try:
+            vectorstore = FAISS.load_local(
+                str(faiss_path),
+                emb,
+                allow_dangerous_deserialization=True,
+            )
+        except Exception as e:
+            print(f"⚠ Warning: Failed to load FAISS index: {e}")
+            raise
         # Add new documents if provided
         if docs and len(docs) > 0:
             print(f"Adding {len(docs)} new documents to existing FAISS index...")
@@ -34,7 +74,7 @@ def get_faiss_vectorstore(docs=None):
             raise ValueError("Cannot build FAISS index - no document chunks provided")
         
         print("Building new FAISS index...")
-        vectorstore = FAISS.from_documents(docs, embedding=embeddings)
+        vectorstore = FAISS.from_documents(docs, embedding=emb)
         faiss_path.mkdir(parents=True, exist_ok=True)
         vectorstore.save_local(str(faiss_path))
         print(f"Saved new FAISS index to {faiss_path}")
@@ -411,8 +451,13 @@ def query_teaching_material_chunks_by_topics(topics: list, limit: int = None, db
 vector_store = None
 try:
     if Path(settings.FAISS_DIR).exists():
-        vector_store = get_faiss_vectorstore()
+        # Only load if embeddings are available
+        if get_embeddings() is not None:
+            vector_store = get_faiss_vectorstore()
+        else:
+            print("⚠ Warning: Embeddings not available, skipping vector store load")
     # else: vector_store stays None; generator will need to handle missing index
 except Exception as e:
     import warnings
+    print(f"⚠ Warning: FAISS vector store not loaded: {e}. Run ingest first.")
     warnings.warn(f"FAISS vector store not loaded: {e}. Run ingest first.")

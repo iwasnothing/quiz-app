@@ -45,6 +45,15 @@ services:
       # Exclude node_modules and other build artifacts if any
       - /app/__pycache__
       - /app/.pytest_cache
+    # Add extra_hosts to resolve hostname to host machine
+    # This allows the container to reach services running on the host or in other containers
+    # Option 1: Use host-gateway (Docker Compose 3.8+, automatically resolves to host IP)
+    extra_hosts:
+      - "spark-cda3.local:host-gateway"
+      - "spark-cda3:host-gateway"
+    # Option 2: If host-gateway doesn't work, you can also use host.docker.internal
+    #   Just change the URLs in .env to use http://host.docker.internal:8000/v1
+    #   host.docker.internal is built-in on Mac/Windows Docker Desktop
     env_file:
       - ./backend/.env
     environment:
