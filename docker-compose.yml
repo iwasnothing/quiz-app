@@ -50,8 +50,8 @@ services:
     environment:
       # Document processing
       - DOCS_DIR=${DOCS_DIR:-/Users/kahingleung/Downloads/edu-doc/science/ch8}
-      - FAISS_DIR=${FAISS_DIR:-./faiss_index}
-      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-./chunks_metadata.db}
+      - FAISS_DIR=${FAISS_DIR:-/app/faiss_index}
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/app/chunks_metadata.db}
       
       # Embeddings configuration
       - EMBEDDING_MODEL=${EMBEDDING_MODEL:-/models/google/embeddinggemma-300m}
