@@ -12,6 +12,7 @@ RUN apt-get update && apt-get install -y \
 # Copy requirements and install
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install faiss-gpu
 
 # Note: App code will be mounted as a volume in docker-compose for development
 # This allows code changes without rebuilding the image
