@@ -11,9 +11,10 @@ services:
     ports:
       - "3000:3000"
     environment:
+      # API URL configuration
       # Browser needs localhost; Server needs internal docker DNS
-      - NEXT_PUBLIC_API_URL=http://localhost:8000
-      - INTERNAL_API_URL=http://backend:8000
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
+      - INTERNAL_API_URL=${INTERNAL_API_URL:-http://backend:8000}
     depends_on:
       - backend
 
@@ -28,12 +29,43 @@ services:
     restart: always
     ports:
       - "8000:8000"
+    volumes:
+      # Mount backend folder for development - changes reflect without rebuild
+      - ./backend:/app
+      # Exclude node_modules and other build artifacts if any
+      - /app/__pycache__
+      - /app/.pytest_cache
+    env_file:
+      - ./backend/.env
     environment:
-      - NEO4J_URI=bolt://neo4j:7687
-      - NEO4J_USERNAME=neo4j
-      - NEO4J_PASSWORD=password
-      - PG_CONNECTION_STRING=postgresql+psycopg://myuser:mypassword@postgres:5432/quiz_vector_db
-      - OPENAI_API_KEY=${OPENAI_API_KEY} # Pass from host shell
+      # Document processing
+      - DOCS_DIR=${DOCS_DIR:-/Users/kahingleung/Downloads/edu-doc/science/ch8}
+      - FAISS_DIR=${FAISS_DIR:-./faiss_index}
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-./chunks_metadata.db}
+      
+      # Embeddings configuration
+      - EMBEDDING_MODEL=${EMBEDDING_MODEL:-/models/google/embeddinggemma-300m}
+      - EMBEDDING_BASE_URL=${EMBEDDING_BASE_URL:-http://spark-cda3.local:8001/v1}
+      - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-EMPTY}
+      
+      # LLM configuration
+      - LLM_MODEL=${LLM_MODEL:-/models/Qwen/Qwen3-Omni-30B-A3B-Instruct}
+      - LLM_BASE_URL=${LLM_BASE_URL:-http://spark-cda3.local:8000/v1}
+      - LLM_API_KEY=${LLM_API_KEY:-EMPTY}
+      - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
+      
+      # Database configuration (for PostgreSQL/Neo4j if needed)
+      # Individual components (used to construct connection string if PG_CONNECTION_STRING not set)
+      - POSTGRES_USER=${POSTGRES_USER:-myuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mypassword}
+      - POSTGRES_DB=${POSTGRES_DB:-quiz_vector_db}
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      # Full connection string (optional - if not set, backend will construct from components above)
+      - PG_CONNECTION_STRING=${PG_CONNECTION_STRING:-}
+      
+      # OpenAI API (if using OpenAI directly)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-EMPTY}
     depends_on:
       - postgres
 
@@ -48,9 +80,9 @@ services:
     ports:
       - "5432:5432"
     environment:
-      - POSTGRES_USER=myuser
-      - POSTGRES_PASSWORD=mypassword
-      - POSTGRES_DB=quiz_vector_db
+      - POSTGRES_USER=${POSTGRES_USER:-myuser}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mypassword}
+      - POSTGRES_DB=${POSTGRES_DB:-quiz_vector_db}
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres/init:/docker-entrypoint-initdb.d

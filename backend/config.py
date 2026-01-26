@@ -25,13 +25,18 @@ class Settings:
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     
     # Database configuration (for PostgreSQL/Neo4j if needed)
-    NEO4J_URI: str = os.getenv("NEO4J_URI", "bolt://localhost:7687")
-    NEO4J_USERNAME: str = os.getenv("NEO4J_USERNAME", "neo4j")
-    NEO4J_PASSWORD: str = os.getenv("NEO4J_PASSWORD", "password")
-    PG_CONNECTION_STRING: str = os.getenv(
-        "PG_CONNECTION_STRING", 
-        "postgresql+psycopg://myuser:mypassword@localhost:5432/quiz_vector_db"
-    )
+    # If PG_CONNECTION_STRING is not set, construct it from individual components
+    _pg_conn_str = os.getenv("PG_CONNECTION_STRING")
+    if _pg_conn_str:
+        PG_CONNECTION_STRING: str = _pg_conn_str
+    else:
+        # Construct from individual components
+        pg_user = os.getenv("POSTGRES_USER", "myuser")
+        pg_password = os.getenv("POSTGRES_PASSWORD", "mypassword")
+        pg_host = os.getenv("POSTGRES_HOST", "localhost")
+        pg_port = os.getenv("POSTGRES_PORT", "5432")
+        pg_db = os.getenv("POSTGRES_DB", "quiz_vector_db")
+        PG_CONNECTION_STRING: str = f"postgresql+psycopg://{pg_user}:{pg_password}@{pg_host}:{pg_port}/{pg_db}"
     
     # OpenAI API (if using OpenAI directly)
     OPENAI_API_KEY: str = os.getenv("OPENAI_API_KEY", "")

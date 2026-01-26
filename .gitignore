@@ -10,8 +10,10 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+/lib/
 lib64/
+# Allow frontend lib directory
+!frontend/lib/
 parts/
 sdist/
 var/

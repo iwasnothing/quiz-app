@@ -13,8 +13,9 @@ RUN apt-get update && apt-get install -y \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy app code
-COPY . .
+# Note: App code will be mounted as a volume in docker-compose for development
+# This allows code changes without rebuilding the image
+# COPY . .
 
-# Run with uvicorn (FastAPI server)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run with uvicorn (FastAPI server) with reload for development
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
