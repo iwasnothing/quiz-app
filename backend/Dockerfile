@@ -4,24 +4,32 @@ FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
 
 WORKDIR /app
 
-# Install Python 3.11 and system dependencies
+# Install system dependencies
 RUN apt-get update && apt-get install -y \
-    python3.11 \
-    python3.11-dev \
-    python3-pip \
+    wget \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Create symlinks for python and pip (force overwrite if they exist)
-RUN ln -sf /usr/bin/python3.11 /usr/bin/python && \
-    ln -sf /usr/bin/python3.11 /usr/bin/python3 && \
-    python3.11 -m pip install --upgrade pip
+# Install Miniconda
+RUN wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O /tmp/miniconda.sh && \
+    bash /tmp/miniconda.sh -b -p /opt/conda && \
+    rm /tmp/miniconda.sh && \
+    /opt/conda/bin/conda clean -afy
 
-# Copy requirements and install
+# Add conda to PATH
+ENV PATH=/opt/conda/bin:$PATH
+
+# Install Python 3.11 via conda and pip
+RUN conda install -y python=3.11 pip && \
+    pip install --upgrade pip
+
+# Install faiss-gpu via conda (not available on PyPI)
+RUN conda install -y -c conda-forge faiss-gpu
+
+# Copy requirements and install Python packages
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install faiss-gpu
 
 # Note: App code will be mounted as a volume in docker-compose for development
 # This allows code changes without rebuilding the image
