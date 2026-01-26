@@ -11,6 +11,7 @@ langchain-openai
 langchain-postgres
 langchain-experimental
 langchain-text-splitters
+langchain-classic
 neo4j
 psycopg[binary]
 pypdf
