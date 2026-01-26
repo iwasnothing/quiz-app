@@ -1,38 +1,19 @@
-# Use NVIDIA CUDA base image for GPU support on Spark DGX
-# Using devel variant for faiss-gpu compilation
-FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
+# Use NVIDIA PyTorch base image for GPU support on Spark DGX
+# This image includes Python 3.12, CUDA, and conda pre-installed
+FROM nvcr.io/nvidia/pytorch:25.11-py3
 
 WORKDIR /app
 
-# Install system dependencies
+# Install system dependencies for psycopg (Postgres driver)
 RUN apt-get update && apt-get install -y \
-    wget \
-    build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Miniconda (architecture-aware)
-RUN ARCH=$(uname -m) && \
-    if [ "$ARCH" = "x86_64" ]; then \
-        MINICONDA_ARCH="x86_64"; \
-    elif [ "$ARCH" = "aarch64" ] || [ "$ARCH" = "arm64" ]; then \
-        MINICONDA_ARCH="aarch64"; \
-    else \
-        echo "Unsupported architecture: $ARCH" && exit 1; \
-    fi && \
-    wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${MINICONDA_ARCH}.sh -O /tmp/miniconda.sh && \
-    bash /tmp/miniconda.sh -b -p /opt/conda && \
-    rm /tmp/miniconda.sh && \
-    /opt/conda/bin/conda clean -afy
-
-# Add conda to PATH
-ENV PATH=/opt/conda/bin:$PATH
-
-# Install Python 3.11 via conda and pip
-RUN conda install -y python=3.11 pip && \
-    pip install --upgrade pip
+# Upgrade pip
+RUN pip install --upgrade pip
 
 # Install faiss-gpu via conda (not available on PyPI)
+# Note: The base image already has conda in PATH
 RUN conda install -y -c conda-forge faiss-gpu
 
 # Copy requirements and install Python packages
