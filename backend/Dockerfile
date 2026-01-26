@@ -1,13 +1,22 @@
-# Use python-slim for a smaller ARM64 footprint
-FROM python:3.11-slim
+# Use NVIDIA CUDA base image for GPU support on Spark DGX
+# Using devel variant for faiss-gpu compilation
+FROM nvidia/cuda:12.1.0-devel-ubuntu22.04
 
 WORKDIR /app
 
-# Install system dependencies for psycopg (Postgres driver)
+# Install Python 3.11 and system dependencies
 RUN apt-get update && apt-get install -y \
+    python3.11 \
+    python3.11-dev \
+    python3-pip \
     build-essential \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
+
+# Create symlinks for python and pip
+RUN ln -s /usr/bin/python3.11 /usr/bin/python && \
+    ln -s /usr/bin/python3.11 /usr/bin/python3 && \
+    python3.11 -m pip install --upgrade pip
 
 # Copy requirements and install
 COPY requirements.txt .
