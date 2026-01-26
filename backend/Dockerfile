@@ -14,7 +14,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Create symlinks for python and pip
-RUN python -m pip install --upgrade pip
+RUN ln -s /usr/bin/python3.11 /usr/bin/python && \
+    ln -s /usr/bin/python3.11 /usr/bin/python3 && \
+    python3.11 -m pip install --upgrade pip
 
 # Copy requirements and install
 COPY requirements.txt .
