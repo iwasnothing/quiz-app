@@ -92,6 +92,8 @@ INSTRUCTIONS:
 4. Provide a clear marking rubric for each question.
 5. For MCQs, provide plausible distractors{distractor_note}.
 
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, markdown formatting, or code blocks. Output ONLY the raw JSON object.
+
 FORMAT:
 {format_instructions}
 """)
