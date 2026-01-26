@@ -13,8 +13,8 @@ services:
     environment:
       # API URL configuration
       # Browser needs localhost; Server needs internal docker DNS
-      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000}
-      - INTERNAL_API_URL=${INTERNAL_API_URL:-http://backend:8000}
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8080}
+      - INTERNAL_API_URL=${INTERNAL_API_URL:-http://backend:8080}
     depends_on:
       - backend
 
@@ -28,7 +28,7 @@ services:
     container_name: quiz-backend
     restart: always
     ports:
-      - "8000:8000"
+      - "8080:8080"
     volumes:
       # Mount backend folder for development - changes reflect without rebuild
       - ./backend:/app
