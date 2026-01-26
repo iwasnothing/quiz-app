@@ -11,7 +11,15 @@ class Settings:
     # Document processing
     DOCS_DIR: str = os.getenv("DOCS_DIR", "/Users/kahingleung/Downloads/edu-doc/science/ch8")
     FAISS_DIR: str = os.getenv("FAISS_DIR", "./faiss_index")
-    SQLITE_DB_PATH: str = os.getenv("SQLITE_DB_PATH", "./chunks_metadata.db")
+    # Normalize SQLITE_DB_PATH: convert relative paths to absolute
+    # In Docker, resolve relative paths relative to /app (WORKDIR), not current working directory
+    _sqlite_db_path = os.getenv("SQLITE_DB_PATH", "./chunks_metadata.db")
+    if os.path.isabs(_sqlite_db_path):
+        SQLITE_DB_PATH: str = _sqlite_db_path
+    else:
+        # For relative paths, resolve relative to /app if it exists (Docker), otherwise use current dir
+        base_dir = "/app" if os.path.exists("/app") else os.getcwd()
+        SQLITE_DB_PATH: str = os.path.join(base_dir, _sqlite_db_path)
     
     # Embeddings configuration
     EMBEDDING_MODEL: str = os.getenv("EMBEDDING_MODEL", "/models/google/embeddinggemma-300m")
