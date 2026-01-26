@@ -1,6 +1,9 @@
 from langchain_core.output_parsers import JsonOutputParser
+from langchain_core.exceptions import OutputParserException
 from langchain_core.documents import Document
 import numpy as np
+import json
+import re
 from database import (
     vector_store, 
     get_concepts_from_question_bank, 
@@ -327,6 +330,8 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
         distractor_note = ""
 
     # Step 4: Generate with context and few-shot examples
+    # First, get raw LLM output for debugging
+    raw_chain = GENERATE_PROMPT | llm
     chain = GENERATE_PROMPT | llm | parser
     
     # Add format constraint to prompt
@@ -336,8 +341,8 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
     elif format_type == "Short Answer":
         format_constraint = "IMPORTANT: All questions must be Short Answer format (no multiple choice options)."
     
-    try:
-        result = chain.invoke({
+    # Prepare prompt inputs
+    prompt_inputs = {
         "context": context_text,
         "few_shot_examples": few_shot_text,
         "few_shot_instruction": few_shot_instruction,
@@ -347,13 +352,85 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
         "difficulty": difficulty,
         "num_questions": count,
         "format_instructions": parser.get_format_instructions() + "\n\n" + format_constraint
-        })
+    }
+    
+    result = None
+    try:
+        # Get raw LLM output first for debugging
+        print(f"\n{'='*80}")
+        print(f"DEBUG: Invoking LLM for topic: {topic}, difficulty: {difficulty}, count: {count}")
+        print(f"{'='*80}")
+        
+        raw_output = raw_chain.invoke(prompt_inputs)
+        raw_content = str(raw_output.content)
+        
+        print(f"\nDEBUG: Raw LLM output length: {len(raw_content)} characters")
+        print(f"DEBUG: Raw LLM output (first 1000 chars):\n{raw_content[:1000]}")
+        if len(raw_content) > 1000:
+            print(f"DEBUG: ... (truncated, showing last 500 chars) ...\n{raw_content[-500:]}")
+        print(f"{'='*80}\n")
+        
+        # Now parse the raw output
+        try:
+            result = parser.parse(raw_content)
+            print(f"✓ Successfully parsed JSON from LLM output")
+        except Exception as parse_error:
+            print(f"⚠ Parser failed on raw output: {parse_error}")
+            # Try to extract JSON manually from the raw_content we already have
+            error_msg = str(parse_error)
+            
+            # Handle JSON parsing errors specifically
+            if isinstance(parse_error, OutputParserException) or "JSONDecodeError" in error_msg or "Invalid json output" in error_msg:
+                print(f"⚠ JSON parsing error: {error_msg}")
+                print(f"⚠ Attempting to extract JSON from raw output...")
+                
+                # Try to find JSON in markdown code blocks
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_content, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1)
+                    print(f"⚠ Found JSON in markdown block, attempting to parse...")
+                    try:
+                        parsed_json = json.loads(json_str)
+                        result = parsed_json
+                        print(f"✓ Successfully parsed JSON from markdown block")
+                        # Successfully recovered, continue with normal flow
+                    except json.JSONDecodeError as je:
+                        print(f"⚠ Failed to parse extracted JSON: {je}")
+                        raise ValueError(f"LLM returned invalid JSON. Raw output preview: {raw_content[:200]}") from parse_error
+                else:
+                    # Try to find JSON object directly
+                    json_match = re.search(r'\{.*\}', raw_content, re.DOTALL)
+                    if json_match:
+                        json_str = json_match.group(0)
+                        print(f"⚠ Found JSON object in output, attempting to parse...")
+                        try:
+                            parsed_json = json.loads(json_str)
+                            result = parsed_json
+                            print(f"✓ Successfully parsed JSON from output")
+                            # Successfully recovered, continue with normal flow
+                        except json.JSONDecodeError as je:
+                            print(f"⚠ Failed to parse extracted JSON: {je}")
+                            raise ValueError(f"LLM returned invalid JSON. Raw output preview: {raw_content[:200]}") from parse_error
+                    else:
+                        raise ValueError(f"LLM returned empty or non-JSON output. Raw output: {raw_content[:500]}") from parse_error
+            else:
+                # Re-raise if it's not a JSON parsing error
+                raise parse_error
     except Exception as e:
         error_msg = str(e)
+        
+        # Handle connection errors
         if "Connection" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower():
             print(f"⚠ Connection error to LLM service: {error_msg}")
             print(f"  Check that LLM service is running at {settings.LLM_BASE_URL}")
-        raise
+            raise
+        else:
+            # Re-raise other exceptions (including ValueError from JSON parsing recovery attempts)
+            raise
+    
+    # Ensure we have a result
+    if result is None:
+        raise ValueError(f"Failed to generate quiz: No result returned from LLM for topic: {topic}, difficulty: {difficulty}, count: {count}")
     
     # Convert dict result to QuizSchema object
     # The parser returns a dict, but we need a QuizSchema object
