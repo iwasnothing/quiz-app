@@ -356,20 +356,24 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
     }
     
     result = None
-    max_retries = 3
-    retry_count = 0
+    max_retries = settings.LLM_MAX_RETRIES
+    attempt = 0
+    last_error = None
+    last_raw_content = None
     
-    while retry_count < max_retries:
+    print(f"DEBUG: Using max retries: {max_retries}")
+    while attempt < max_retries:
         try:
             # Get raw LLM output first for debugging
             print(f"\n{'='*80}")
-            if retry_count > 0:
-                print(f"DEBUG: RETRY ATTEMPT {retry_count}/{max_retries-1}")
+            if attempt > 0:
+                print(f"DEBUG: RETRY ATTEMPT {attempt}/{max_retries-1}")
             print(f"DEBUG: Invoking LLM for topic: {topic}, difficulty: {difficulty}, count: {count}")
             print(f"{'='*80}")
             
             raw_output = raw_chain.invoke(prompt_inputs)
             raw_content = str(raw_output.content).strip()
+            last_raw_content = raw_content  # Store for error reporting
             
             print(f"\nDEBUG: Raw LLM output length: {len(raw_content)} characters")
             print(f"DEBUG: Raw LLM output (first 1000 chars):\n{raw_content[:1000]}")
@@ -379,10 +383,11 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
             
             # Check if output is empty or just whitespace
             if not raw_content or len(raw_content.strip()) == 0:
-                retry_count += 1
-                if retry_count < max_retries:
-                    print(f"⚠ LLM returned empty output. Retrying... (attempt {retry_count}/{max_retries})")
-                    time.sleep(1 * retry_count)  # Exponential backoff
+                attempt += 1
+                last_error = "LLM returned empty output"
+                if attempt < max_retries:
+                    print(f"⚠ LLM returned empty output. Retrying... (attempt {attempt}/{max_retries})")
+                    time.sleep(3)  # Wait 3 seconds before retry
                     continue
                 else:
                     raise ValueError(f"LLM returned empty output after {max_retries} attempts. This may indicate an issue with the LLM service.")
@@ -431,11 +436,12 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
                                 # Continue to retry
                         else:
                             # No JSON found, retry if we have attempts left
-                            retry_count += 1
-                            if retry_count < max_retries:
+                            attempt += 1
+                            last_error = f"No JSON found in output: {error_msg}"
+                            if attempt < max_retries:
                                 print(f"⚠ No JSON found in output. Full raw output:\n{raw_content}")
-                                print(f"⚠ Retrying... (attempt {retry_count}/{max_retries})")
-                                time.sleep(1 * retry_count)  # Exponential backoff
+                                print(f"⚠ Retrying... (attempt {attempt}/{max_retries})")
+                                time.sleep(3)  # Wait 3 seconds before retry
                                 continue
                             else:
                                 # Show full output in error message
@@ -445,35 +451,42 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
                                 ) from parse_error
                 else:
                     # Not a JSON parsing error, retry if we have attempts left
-                    retry_count += 1
-                    if retry_count < max_retries:
-                        print(f"⚠ Unexpected error: {error_msg}. Retrying... (attempt {retry_count}/{max_retries})")
-                        time.sleep(1 * retry_count)
+                    attempt += 1
+                    last_error = f"Unexpected error: {error_msg}"
+                    if attempt < max_retries:
+                        print(f"⚠ Unexpected error: {error_msg}. Retrying... (attempt {attempt}/{max_retries})")
+                        time.sleep(3)  # Wait 3 seconds before retry
                         continue
                     else:
                         raise
         except Exception as e:
             error_msg = str(e)
+            last_error = error_msg
             
-            # Handle connection errors
+            # Handle connection errors - don't retry these
             if "Connection" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower():
                 print(f"⚠ Connection error to LLM service: {error_msg}")
                 print(f"  Check that LLM service is running at {settings.LLM_BASE_URL}")
                 raise
+            
+            # For other errors, retry if we have attempts left
+            attempt += 1
+            if attempt < max_retries:
+                print(f"⚠ Error occurred: {error_msg}. Retrying... (attempt {attempt}/{max_retries})")
+                time.sleep(3)  # Wait 3 seconds before retry
+                continue
             else:
-                # Check if we should retry
-                retry_count += 1
-                if retry_count < max_retries:
-                    print(f"⚠ Error occurred: {error_msg}. Retrying... (attempt {retry_count}/{max_retries})")
-                    time.sleep(1 * retry_count)
-                    continue
-                else:
-                    # Re-raise other exceptions after all retries exhausted
-                    raise
+                # Re-raise other exceptions after all retries exhausted
+                raise
     
-    # Ensure we have a result
+    # Ensure we have a result - this should only happen if loop exits without break or raise
     if result is None:
-        raise ValueError(f"Failed to generate quiz: No result returned from LLM for topic: {topic}, difficulty: {difficulty}, count: {count}")
+        error_details = f"Topic: {topic}, Difficulty: {difficulty}, Count: {count}"
+        if last_error:
+            error_details += f"\nLast error: {last_error}"
+        if last_raw_content:
+            error_details += f"\nLast raw output ({len(last_raw_content)} chars):\n{last_raw_content[:1000]}"
+        raise ValueError(f"Failed to generate quiz after {max_retries} attempts. {error_details}")
     
     # Convert dict result to QuizSchema object
     # The parser returns a dict, but we need a QuizSchema object

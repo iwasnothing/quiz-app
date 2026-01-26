@@ -31,6 +31,7 @@ class Settings:
     LLM_BASE_URL: str = os.getenv("LLM_BASE_URL", "http://spark-cda3.local:8000/v1")
     LLM_API_KEY: str = os.getenv("LLM_API_KEY", "EMPTY")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
+    LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", "5"))
     
     # Database configuration (for PostgreSQL/Neo4j if needed)
     # If PG_CONNECTION_STRING is not set, construct it from individual components
