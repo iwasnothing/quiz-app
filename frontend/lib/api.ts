@@ -1,10 +1,12 @@
 // API client for the quiz backend
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+console.log('process.env.NEXT_PUBLIC_API_URL', process.env.NEXT_PUBLIC_API_URL);
+console.log('API_URL', API_URL);
 
 // Types matching backend models
 export interface TopicResponse {
-  topic_name: string;
+  topic_name: string; 
   sub_concepts: string[];
 }
 
