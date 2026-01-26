@@ -10,8 +10,20 @@ from langchain_community.document_loaders import (
     TextLoader,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain.chains import RetrievalQA
 from langchain_core.output_parsers import JsonOutputParser
+
+# Optional import for RetrievalQA (legacy, may not be available in newer langchain versions)
+# RetrievalQA is deprecated and moved to langchain-classic, but the import path remains the same
+RETRIEVAL_QA_AVAILABLE = False
+RetrievalQA = None
+
+try:
+    # Try importing from langchain.chains (works if langchain-classic is installed)
+    from langchain.chains import RetrievalQA
+    RETRIEVAL_QA_AVAILABLE = True
+except (ImportError, ModuleNotFoundError):
+    # RetrievalQA is not available - this is OK, it's only used for optional testing
+    pass
 from markitdown import MarkItDown
 
 # Import from refactored modules
@@ -655,6 +667,8 @@ def create_retriever(vectorstore):
 
 def create_qa_chain(retriever):
     """Create an optional RetrievalQA chain over the retriever."""
+    if not RETRIEVAL_QA_AVAILABLE or RetrievalQA is None:
+        raise ImportError("RetrievalQA is not available. Install langchain-classic for backward compatibility.")
     qa = RetrievalQA.from_chain_type(
         llm=llm,
         retriever=retriever,
