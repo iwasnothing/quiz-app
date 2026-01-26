@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y \
 RUN pip install --upgrade pip
 
 # Install miniconda for faiss-gpu (not available on PyPI)
+# Use Python 3.12 to match the base image
 RUN ARCH=$(uname -m) && \
     if [ "$ARCH" = "x86_64" ]; then \
         MINICONDA_ARCH="x86_64"; \
@@ -22,9 +23,11 @@ RUN ARCH=$(uname -m) && \
         echo "Unsupported architecture: $ARCH" && exit 1; \
     fi && \
     apt-get update && apt-get install -y wget && \
+    wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-py312_24.1.2-0-Linux-${MINICONDA_ARCH}.sh -O /tmp/miniconda.sh || \
     wget --quiet https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-${MINICONDA_ARCH}.sh -O /tmp/miniconda.sh && \
     bash /tmp/miniconda.sh -b -p /opt/conda && \
     rm /tmp/miniconda.sh && \
+    /opt/conda/bin/conda install -y python=3.12 && \
     /opt/conda/bin/conda clean -afy && \
     apt-get clean && rm -rf /var/lib/apt/lists/*
 
