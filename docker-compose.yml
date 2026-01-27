@@ -68,7 +68,7 @@ services:
       - EMBEDDING_API_KEY=${EMBEDDING_API_KEY:-EMPTY}
       
       # LLM configuration
-      - LLM_MODEL=${LLM_MODEL:-/models/Qwen/Qwen3-Omni-30B-A3B-Instruct}
+      - LLM_MODEL=${LLM_MODEL:-/models/Qwen/Qwen2.5-7B-Instruct}
       - LLM_BASE_URL=${LLM_BASE_URL:-http://spark-cda3.local:8000/v1}
       - LLM_API_KEY=${LLM_API_KEY:-EMPTY}
       - LLM_TEMPERATURE=${LLM_TEMPERATURE:-0.7}
