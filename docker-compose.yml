@@ -99,7 +99,6 @@ services:
     container_name: quiz-localtunnel
     restart: always
     command: ["lt", "--port", "3000", "--local-host", "spark-cda3"]
-    network_mode: "service:frontend"
     extra_hosts:
       - "spark-cda3.local:host-gateway"
       - "spark-cda3:host-gateway"
