@@ -78,7 +78,9 @@ You are an expert teacher. Create a quiz based on the requested topic and contex
 CONTEXT FROM TEACHING MATERIALS:
 {context}
 
-{few_shot_examples}
+{historical_questions}
+
+{diversity_instruction}
 
 USER REQUEST:
 Topic: {topic}
@@ -91,6 +93,7 @@ INSTRUCTIONS:
 3. Generate questions that align with the context{and_examples}.
 4. Provide a clear marking rubric for each question.
 5. For MCQs, provide plausible distractors{distractor_note}.
+6. CRITICAL: Ensure all generated questions are DISTINCT and DIVERSE from the historical questions shown above. Avoid similar wording, structure, or concepts.
 
 CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, markdown formatting, or code blocks. Output ONLY the raw JSON object.
 

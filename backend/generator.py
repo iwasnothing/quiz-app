@@ -27,6 +27,7 @@ def generate_quiz_chain(
 ):
     """
     Generate quiz using sophisticated retrieval logic with complexity and format ratios.
+    Questions are evenly distributed across topics.
     
     Args:
         topics: List of topic names
@@ -35,62 +36,102 @@ def generate_quiz_chain(
         format_mc: Percentage of multiple choice questions (0-100), remainder are Short Answer
     
     Returns:
-        QuizSchema with questions distributed according to ratios
+        QuizSchema with questions distributed according to ratios and evenly across topics
     """
-    # Calculate difficulty distribution
-    num_hard = int(count * complexity_hard / 100)
-    num_easy = int((count - num_hard) * 0.5)  # Split remaining between Easy and Medium
-    num_medium = count - num_hard - num_easy
+    # Evenly distribute questions across topics
+    num_topics = len(topics)
+    if num_topics == 0:
+        raise ValueError("At least one topic must be provided")
+    
+    questions_per_topic = count // num_topics
+    remainder = count % num_topics
+    
+    print(f"Generating quiz: {count} questions across {num_topics} topics")
+    print(f"  Questions per topic: {questions_per_topic} (with {remainder} extra distributed)")
+    
+    # Calculate difficulty distribution per topic
+    num_hard = int(questions_per_topic * complexity_hard / 100)
+    num_easy = int((questions_per_topic - num_hard) * 0.5)  # Split remaining between Easy and Medium
+    num_medium = questions_per_topic - num_hard - num_easy
     
     # Calculate format distribution
-    num_mcq = int(count * format_mc / 100)
-    num_short = count - num_mcq
+    num_mcq = int(questions_per_topic * format_mc / 100)
+    num_short = questions_per_topic - num_mcq
     
-    print(f"Generating quiz: {count} questions")
-    print(f"  Difficulty: {num_easy} Easy, {num_medium} Medium, {num_hard} Hard")
-    print(f"  Format: {num_mcq} MCQ, {num_short} Short Answer")
+    print(f"  Per-topic difficulty: {num_easy} Easy, {num_medium} Medium, {num_hard} Hard")
+    print(f"  Per-topic format: {num_mcq} MCQ, {num_short} Short Answer")
     
-    # Generate questions in batches by difficulty and format
+    # Generate questions for each topic separately
     all_questions = []
+    question_id_counter = 1
+    
+    for topic_idx, topic in enumerate(topics):
+        # Add one extra question to the first 'remainder' topics
+        topic_count = questions_per_topic + (1 if topic_idx < remainder else 0)
+        if topic_count == 0:
+            continue
+        
+        print(f"\nGenerating {topic_count} questions for topic: {topic}")
+        
+        # Calculate distributions for this topic (may have +1 if it gets remainder)
+        topic_num_hard = int(topic_count * complexity_hard / 100)
+        topic_num_easy = int((topic_count - topic_num_hard) * 0.5)
+        topic_num_medium = topic_count - topic_num_hard - topic_num_easy
+        topic_num_mcq = int(topic_count * format_mc / 100)
+        topic_num_short = topic_count - topic_num_mcq
+        
+        # Generate Hard questions for this topic
+        if topic_num_hard > 0:
+            hard_mcq = int(topic_num_hard * format_mc / 100)
+            hard_short = topic_num_hard - hard_mcq
+            if hard_mcq > 0:
+                hard_mcq_quiz = _generate_quiz_batch(topic, "Hard", hard_mcq, "MCQ", topics)
+                for q in hard_mcq_quiz.questions:
+                    q.id = f"q{question_id_counter}"
+                    question_id_counter += 1
+                    all_questions.append(q)
+            if hard_short > 0:
+                hard_short_quiz = _generate_quiz_batch(topic, "Hard", hard_short, "Short Answer", topics)
+                for q in hard_short_quiz.questions:
+                    q.id = f"q{question_id_counter}"
+                    question_id_counter += 1
+                    all_questions.append(q)
+        
+        # Generate Medium questions for this topic
+        if topic_num_medium > 0:
+            medium_mcq = int(topic_num_medium * format_mc / 100)
+            medium_short = topic_num_medium - medium_mcq
+            if medium_mcq > 0:
+                medium_mcq_quiz = _generate_quiz_batch(topic, "Medium", medium_mcq, "MCQ", topics)
+                for q in medium_mcq_quiz.questions:
+                    q.id = f"q{question_id_counter}"
+                    question_id_counter += 1
+                    all_questions.append(q)
+            if medium_short > 0:
+                medium_short_quiz = _generate_quiz_batch(topic, "Medium", medium_short, "Short Answer", topics)
+                for q in medium_short_quiz.questions:
+                    q.id = f"q{question_id_counter}"
+                    question_id_counter += 1
+                    all_questions.append(q)
+        
+        # Generate Easy questions for this topic
+        if topic_num_easy > 0:
+            easy_mcq = int(topic_num_easy * format_mc / 100)
+            easy_short = topic_num_easy - easy_mcq
+            if easy_mcq > 0:
+                easy_mcq_quiz = _generate_quiz_batch(topic, "Easy", easy_mcq, "MCQ", topics)
+                for q in easy_mcq_quiz.questions:
+                    q.id = f"q{question_id_counter}"
+                    question_id_counter += 1
+                    all_questions.append(q)
+            if easy_short > 0:
+                easy_short_quiz = _generate_quiz_batch(topic, "Easy", easy_short, "Short Answer", topics)
+                for q in easy_short_quiz.questions:
+                    q.id = f"q{question_id_counter}"
+                    question_id_counter += 1
+                    all_questions.append(q)
+    
     topic_str = ", ".join(topics)
-    
-    # Generate Hard questions
-    if num_hard > 0:
-        hard_mcq = int(num_hard * format_mc / 100)
-        hard_short = num_hard - hard_mcq
-        if hard_mcq > 0:
-            hard_mcq_quiz = _generate_quiz_batch(topic_str, "Hard", hard_mcq, "MCQ")
-            all_questions.extend(hard_mcq_quiz.questions)
-        if hard_short > 0:
-            hard_short_quiz = _generate_quiz_batch(topic_str, "Hard", hard_short, "Short Answer")
-            all_questions.extend(hard_short_quiz.questions)
-    
-    # Generate Medium questions
-    if num_medium > 0:
-        medium_mcq = int(num_medium * format_mc / 100)
-        medium_short = num_medium - medium_mcq
-        if medium_mcq > 0:
-            medium_mcq_quiz = _generate_quiz_batch(topic_str, "Medium", medium_mcq, "MCQ")
-            all_questions.extend(medium_mcq_quiz.questions)
-        if medium_short > 0:
-            medium_short_quiz = _generate_quiz_batch(topic_str, "Medium", medium_short, "Short Answer")
-            all_questions.extend(medium_short_quiz.questions)
-    
-    # Generate Easy questions
-    if num_easy > 0:
-        easy_mcq = int(num_easy * format_mc / 100)
-        easy_short = num_easy - easy_mcq
-        if easy_mcq > 0:
-            easy_mcq_quiz = _generate_quiz_batch(topic_str, "Easy", easy_mcq, "MCQ")
-            all_questions.extend(easy_mcq_quiz.questions)
-        if easy_short > 0:
-            easy_short_quiz = _generate_quiz_batch(topic_str, "Easy", easy_short, "Short Answer")
-            all_questions.extend(easy_short_quiz.questions)
-    
-    # Assign IDs
-    for i, q in enumerate(all_questions[:count], 1):
-        q.id = f"q{i}"
-    
     return QuizSchema(
         title=f"Quiz: {topic_str}",
         questions=all_questions[:count]
@@ -105,6 +146,7 @@ def generate_quiz_chain_streaming(
 ):
     """
     Generate quiz with streaming - yields questions as they are generated.
+    Questions are evenly distributed across topics.
     
     Args:
         topics: List of topic names
@@ -115,80 +157,115 @@ def generate_quiz_chain_streaming(
     Yields:
         QuizQuestion objects as they are generated, one at a time
     """
-    # Calculate difficulty distribution
-    num_hard = int(count * complexity_hard / 100)
-    num_easy = int((count - num_hard) * 0.5)  # Split remaining between Easy and Medium
-    num_medium = count - num_hard - num_easy
+    # Evenly distribute questions across topics
+    num_topics = len(topics)
+    if num_topics == 0:
+        raise ValueError("At least one topic must be provided")
+    
+    questions_per_topic = count // num_topics
+    remainder = count % num_topics
+    
+    print(f"Generating quiz: {count} questions across {num_topics} topics")
+    print(f"  Questions per topic: {questions_per_topic} (with {remainder} extra distributed)")
+    
+    # Calculate difficulty distribution per topic
+    num_hard = int(questions_per_topic * complexity_hard / 100)
+    num_easy = int((questions_per_topic - num_hard) * 0.5)  # Split remaining between Easy and Medium
+    num_medium = questions_per_topic - num_hard - num_easy
     
     # Calculate format distribution
-    num_mcq = int(count * format_mc / 100)
-    num_short = count - num_mcq
+    num_mcq = int(questions_per_topic * format_mc / 100)
+    num_short = questions_per_topic - num_mcq
     
-    print(f"Generating quiz: {count} questions")
-    print(f"  Difficulty: {num_easy} Easy, {num_medium} Medium, {num_hard} Hard")
-    print(f"  Format: {num_mcq} MCQ, {num_short} Short Answer")
+    print(f"  Per-topic difficulty: {num_easy} Easy, {num_medium} Medium, {num_hard} Hard")
+    print(f"  Per-topic format: {num_mcq} MCQ, {num_short} Short Answer")
     
-    topic_str = ", ".join(topics)
     question_counter = 1
     
-    # Generate Hard questions
-    if num_hard > 0:
-        hard_mcq = int(num_hard * format_mc / 100)
-        hard_short = num_hard - hard_mcq
-        if hard_mcq > 0:
-            hard_mcq_quiz = _generate_quiz_batch(topic_str, "Hard", hard_mcq, "MCQ")
-            for q in hard_mcq_quiz.questions:
-                q.id = f"q{question_counter}"
-                question_counter += 1
-                yield q
-        if hard_short > 0:
-            hard_short_quiz = _generate_quiz_batch(topic_str, "Hard", hard_short, "Short Answer")
-            for q in hard_short_quiz.questions:
-                q.id = f"q{question_counter}"
-                question_counter += 1
-                yield q
-    
-    # Generate Medium questions
-    if num_medium > 0:
-        medium_mcq = int(num_medium * format_mc / 100)
-        medium_short = num_medium - medium_mcq
-        if medium_mcq > 0:
-            medium_mcq_quiz = _generate_quiz_batch(topic_str, "Medium", medium_mcq, "MCQ")
-            for q in medium_mcq_quiz.questions:
-                q.id = f"q{question_counter}"
-                question_counter += 1
-                yield q
-        if medium_short > 0:
-            medium_short_quiz = _generate_quiz_batch(topic_str, "Medium", medium_short, "Short Answer")
-            for q in medium_short_quiz.questions:
-                q.id = f"q{question_counter}"
-                question_counter += 1
-                yield q
-    
-    # Generate Easy questions
-    if num_easy > 0:
-        easy_mcq = int(num_easy * format_mc / 100)
-        easy_short = num_easy - easy_mcq
-        if easy_mcq > 0:
-            easy_mcq_quiz = _generate_quiz_batch(topic_str, "Easy", easy_mcq, "MCQ")
-            for q in easy_mcq_quiz.questions:
-                q.id = f"q{question_counter}"
-                question_counter += 1
-                yield q
-        if easy_short > 0:
-            easy_short_quiz = _generate_quiz_batch(topic_str, "Easy", easy_short, "Short Answer")
-            for q in easy_short_quiz.questions:
-                q.id = f"q{question_counter}"
-                question_counter += 1
-                yield q
+    # Generate questions for each topic separately
+    for topic_idx, topic in enumerate(topics):
+        # Add one extra question to the first 'remainder' topics
+        topic_count = questions_per_topic + (1 if topic_idx < remainder else 0)
+        if topic_count == 0:
+            continue
+        
+        print(f"\nGenerating {topic_count} questions for topic: {topic}")
+        
+        # Calculate distributions for this topic (may have +1 if it gets remainder)
+        topic_num_hard = int(topic_count * complexity_hard / 100)
+        topic_num_easy = int((topic_count - topic_num_hard) * 0.5)
+        topic_num_medium = topic_count - topic_num_hard - topic_num_easy
+        topic_num_mcq = int(topic_count * format_mc / 100)
+        topic_num_short = topic_count - topic_num_mcq
+        
+        # Generate Hard questions for this topic
+        if topic_num_hard > 0:
+            hard_mcq = int(topic_num_hard * format_mc / 100)
+            hard_short = topic_num_hard - hard_mcq
+            if hard_mcq > 0:
+                hard_mcq_quiz = _generate_quiz_batch(topic, "Hard", hard_mcq, "MCQ", topics)
+                for q in hard_mcq_quiz.questions:
+                    q.id = f"q{question_counter}"
+                    question_counter += 1
+                    yield q
+            if hard_short > 0:
+                hard_short_quiz = _generate_quiz_batch(topic, "Hard", hard_short, "Short Answer", topics)
+                for q in hard_short_quiz.questions:
+                    q.id = f"q{question_counter}"
+                    question_counter += 1
+                    yield q
+        
+        # Generate Medium questions for this topic
+        if topic_num_medium > 0:
+            medium_mcq = int(topic_num_medium * format_mc / 100)
+            medium_short = topic_num_medium - medium_mcq
+            if medium_mcq > 0:
+                medium_mcq_quiz = _generate_quiz_batch(topic, "Medium", medium_mcq, "MCQ", topics)
+                for q in medium_mcq_quiz.questions:
+                    q.id = f"q{question_counter}"
+                    question_counter += 1
+                    yield q
+            if medium_short > 0:
+                medium_short_quiz = _generate_quiz_batch(topic, "Medium", medium_short, "Short Answer", topics)
+                for q in medium_short_quiz.questions:
+                    q.id = f"q{question_counter}"
+                    question_counter += 1
+                    yield q
+        
+        # Generate Easy questions for this topic
+        if topic_num_easy > 0:
+            easy_mcq = int(topic_num_easy * format_mc / 100)
+            easy_short = topic_num_easy - easy_mcq
+            if easy_mcq > 0:
+                easy_mcq_quiz = _generate_quiz_batch(topic, "Easy", easy_mcq, "MCQ", topics)
+                for q in easy_mcq_quiz.questions:
+                    q.id = f"q{question_counter}"
+                    question_counter += 1
+                    yield q
+            if easy_short > 0:
+                easy_short_quiz = _generate_quiz_batch(topic, "Easy", easy_short, "Short Answer", topics)
+                for q in easy_short_quiz.questions:
+                    q.id = f"q{question_counter}"
+                    question_counter += 1
+                    yield q
 
 
-def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: str):
+def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: str, all_topics: list[str] = None):
     """
     Internal helper to generate a batch of questions with specific difficulty and format.
+    
+    Args:
+        topic: Single topic name for this batch
+        difficulty: Difficulty level (Easy, Medium, Hard)
+        count: Number of questions to generate
+        format_type: Question format (MCQ or Short Answer)
+        all_topics: All topics in the quiz (used to retrieve historical questions for diversity)
     """
     # Convert topic to list (in case multiple topics are passed as comma-separated string)
     topics = [t.strip() for t in topic.split(',')] if ',' in topic else [topic]
+    
+    # Use all_topics if provided, otherwise use just this topic
+    topics_for_history = all_topics if all_topics else topics
     
     # Step 1: Get concepts from question_bank that are commonly tested for these topics
     concepts = get_concepts_from_question_bank(topics)
@@ -311,22 +388,47 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
         context_text = f"No teaching material context available for topics: {topics}. Please ensure documents have been ingested and contain content related to these topics."
         print(f"Warning: No teaching material context found. Generating questions based on topic knowledge only.")
     
-    # Step 3: Get question_bank chunks as few-shot examples
-    few_shot_examples = query_question_bank_chunks_by_topics(topics, limit=5)
-    print(f"Retrieved {len(few_shot_examples)} question_bank chunks as few-shot examples")
+    # Step 3: Get question_bank chunks as historical examples (retrieve more for better diversity)
+    # Retrieve historical questions from all topics to ensure diversity
+    historical_questions = query_question_bank_chunks_by_topics(topics_for_history, limit=15)
+    print(f"Retrieved {len(historical_questions)} historical question_bank chunks for diversity reference")
     
-    # Format few-shot examples section
-    if few_shot_examples:
-        few_shot_text = "FEW-SHOT EXAMPLES FROM HISTORICAL QUESTION BANKS:\n" + "\n\n---\n\n".join(few_shot_examples)
-        few_shot_instruction = "Study the few-shot examples from historical question banks to understand:\n   - What types of concepts are typically tested\n   - The style and format of questions used in past assessments\n   - The level of detail expected in answers"
-        and_examples = " and the patterns shown in the examples"
-        distractor_note = " similar to those in the examples"
+    # Format historical questions section
+    if historical_questions:
+        historical_text = "HISTORICAL QUESTIONS FROM QUESTION BANKS:\n" + "\n\n---\n\n".join(historical_questions)
+        diversity_instruction = (
+            "CRITICAL DIVERSITY REQUIREMENT: The questions below are examples of previously generated questions. "
+            "You MUST generate NEW questions that are DIFFERENT and DIVERSE from these historical examples. "
+            "Avoid:\n"
+            "   - Repeating the same question structure or wording\n"
+            "   - Asking about the exact same concepts in the same way\n"
+            "   - Using similar phrasing or question patterns\n"
+            "Instead, create questions that:\n"
+            "   - Cover different aspects or angles of the topic\n"
+            "   - Use varied question structures and wording\n"
+            "   - Test different sub-concepts or applications\n"
+            "   - Present information in novel ways\n"
+            "Study these historical questions to understand the style and format, but ensure your generated questions are DISTINCT and DIVERSE."
+        )
+        few_shot_instruction = (
+            "Study the historical questions to understand:\n"
+            "   - What types of concepts are typically tested\n"
+            "   - The style and format of questions used in past assessments\n"
+            "   - The level of detail expected in answers\n"
+            "BUT ensure your generated questions are DIFFERENT and more DIVERSE than these examples."
+        )
+        and_examples = " and the patterns shown in the historical examples (but ensure diversity)"
+        distractor_note = " similar to those in the examples (but with variety)"
     else:
-        few_shot_text = ""
+        historical_text = ""
+        diversity_instruction = (
+            "Generate diverse questions that cover different aspects and angles of the topic. "
+            "Ensure variety in question structure, wording, and the concepts being tested."
+        )
         if teaching_material_docs:
-            few_shot_instruction = "Generate questions based on the teaching materials context."
+            few_shot_instruction = "Generate diverse questions based on the teaching materials context."
         else:
-            few_shot_instruction = "Generate questions based on general knowledge of the topics."
+            few_shot_instruction = "Generate diverse questions based on general knowledge of the topics."
         and_examples = ""
         distractor_note = ""
 
@@ -345,7 +447,8 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
     # Prepare prompt inputs
     prompt_inputs = {
         "context": context_text,
-        "few_shot_examples": few_shot_text,
+        "historical_questions": historical_text,
+        "diversity_instruction": diversity_instruction,
         "few_shot_instruction": few_shot_instruction,
         "and_examples": and_examples,
         "distractor_note": distractor_note,
