@@ -1,0 +1,59 @@
+version: '3.8'
+
+services:
+  vllm-qwen:
+    image: vllm/vllm-openai:nightly-aarch64
+    container_name: vllm-qwen-2.5
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    environment:
+      - TRITON_PTXAS_PATH=/usr/local/cuda/host-bin/ptxas
+    volumes:
+      - /raid/llm-data/models:/models
+      - /usr/local/cuda/bin:/usr/local/cuda/host-bin:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      --model /models/Qwen/Qwen2.5-7B-Instruct
+      --max-num-seqs 16
+      --tensor-parallel-size 1
+      --max-model-len 32768
+      --port 8000
+      --trust-remote-code
+      --gpu-memory-utilization 0.80
+      --enable-prefix-caching
+      --kv-cache-dtype auto
+
+  vllm-embedding:
+    image: vllm/vllm-openai:nightly-aarch64
+    container_name: vllm-embeddinggemma
+    restart: unless-stopped
+    ipc: host
+    network_mode: host
+    environment:
+      - TRITON_PTXAS_PATH=/usr/local/cuda/host-bin/ptxas
+    volumes:
+      - /raid/llm-data/models:/models
+      - /usr/local/cuda/bin:/usr/local/cuda/host-bin:ro
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    command: >
+      --model /models/google/embeddinggemma-300m
+      --dtype bfloat16
+      --max-num-seqs 256
+      --tensor-parallel-size 1
+      --max-model-len 2048
+      --port 8001
+      --enforce-eager
+      --gpu-memory-utilization 0.1
