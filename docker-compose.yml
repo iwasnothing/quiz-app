@@ -90,6 +90,20 @@ services:
 
 
   # -------------------------------------------------------
+  # 3. Localtunnel: Expose frontend to the internet
+  # -------------------------------------------------------
+  localtunnel:
+    build:
+      context: ./localtunnel
+      dockerfile: Dockerfile
+    container_name: quiz-localtunnel
+    restart: always
+    command: ["lt", "--port", "3000", "--local-host", "localhost"]
+    network_mode: "service:frontend"
+    depends_on:
+      - frontend
+
+  # -------------------------------------------------------
   # 4. Vector Store: Postgres (pgvector)
   # -------------------------------------------------------
   postgres:

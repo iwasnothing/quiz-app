@@ -3,6 +3,9 @@
 import os
 import subprocess
 import shutil
+import re
+import math
+from collections import Counter
 from pathlib import Path
 
 from langchain_community.document_loaders import (
@@ -48,6 +51,75 @@ from models import ResolvedTopicResponse
 
 # Initialize MarkItDown converter
 markdown_converter = MarkItDown()
+
+
+def clean_markdown(content: str) -> str:
+    """
+    Clean markdown content by removing unnecessary HTML tags, special characters, and symbols.
+    Keeps only essential markdown formatting and text content.
+    """
+    if not content:
+        return ""
+    
+    # Remove HTML tags (including style, script, etc.)
+    content = re.sub(r'<[^>]+>', '', content)
+    
+    # Remove HTML entities but keep common ones that are readable
+    # Replace common HTML entities with their text equivalents
+    html_entities = {
+        '&nbsp;': ' ',
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&quot;': '"',
+        '&apos;': "'",
+        '&#39;': "'",
+        '&hellip;': '...',
+        '&mdash;': '—',
+        '&ndash;': '–',
+    }
+    for entity, replacement in html_entities.items():
+        content = content.replace(entity, replacement)
+    
+    # Remove remaining HTML entities (numeric and named)
+    content = re.sub(r'&#?\w+;', '', content)
+    
+    # Remove excessive whitespace (more than 2 consecutive spaces)
+    content = re.sub(r' {3,}', ' ', content)
+    
+    # Remove excessive newlines (more than 2 consecutive)
+    content = re.sub(r'\n{3,}', '\n\n', content)
+    
+    # Remove special Unicode characters that are not essential (keep common punctuation)
+    # Keep: letters, numbers, common punctuation, whitespace, and basic markdown symbols
+    # Remove: special symbols, emojis, and other non-essential characters
+    # This regex keeps: alphanumeric, spaces, newlines, and common punctuation/markdown
+    content = re.sub(r'[^\w\s\n\.\,\;\:\!\?\-\(\)\[\]\{\}\'\"\/\\\*\_\#\=\+\>\<\|`~]', '', content)
+    
+    # Clean up markdown links - keep the text, remove the URL if it's too long
+    # Convert [text](url) to just "text" if URL is very long
+    def clean_link(match):
+        text = match.group(1)
+        url = match.group(2)
+        if len(url) > 100:  # If URL is too long, just keep the text
+            return text
+        return match.group(0)  # Keep original if URL is reasonable
+    
+    content = re.sub(r'\[([^\]]+)\]\(([^\)]+)\)', clean_link, content)
+    
+    # Remove markdown images (keep alt text if available)
+    content = re.sub(r'!\[([^\]]*)\]\([^\)]+\)', r'\1', content)
+    
+    # Remove excessive markdown formatting symbols (more than 3 consecutive)
+    content = re.sub(r'[*_#]{4,}', '', content)
+    
+    # Remove control characters except newline and tab
+    content = re.sub(r'[\x00-\x08\x0B-\x0C\x0E-\x1F\x7F]', '', content)
+    
+    # Trim whitespace from start and end
+    content = content.strip()
+    
+    return content
 
 
 def find_libreoffice():
@@ -237,6 +309,14 @@ def convert_to_markdown(data_dir: str) -> int:
                 skipped_files.append(file_path.name)
                 continue
             
+            # Clean the markdown content (remove unnecessary tags and special characters)
+            markdown_content = clean_markdown(markdown_content)
+            
+            if not markdown_content or not markdown_content.strip():
+                print(f"WARNING: Markdown content became empty after cleaning for {file_path.name}, skipping...")
+                skipped_files.append(file_path.name)
+                continue
+            
             # Save markdown file next to the original file with .md extension
             md_path = file_path.with_suffix('.md')
             with open(md_path, 'w', encoding='utf-8') as f:
@@ -401,16 +481,102 @@ def extract_json_from_text(text: str) -> dict:
     return None
 
 
+def tokenize(text: str) -> list:
+    """Simple tokenization: split by whitespace and convert to lowercase."""
+    if not text:
+        return []
+    return text.lower().split()
+
+
+def bm25_search(query: str, documents: list, k: int = 50, k1: float = 1.5, b: float = 0.75) -> list:
+    """
+    BM25 search to find the most similar documents to a query.
+    
+    Args:
+        query: The search query string
+        documents: List of document strings to search in
+        k: Number of top results to return
+        k1: BM25 parameter (term frequency saturation)
+        b: BM25 parameter (length normalization)
+    
+    Returns:
+        List of top k document indices sorted by relevance
+    """
+    if not query or not documents:
+        return []
+    
+    query_tokens = tokenize(query)
+    if not query_tokens:
+        return []
+    
+    # Tokenize all documents
+    doc_tokens = [tokenize(doc) for doc in documents]
+    
+    # Calculate document frequencies (how many documents contain each term)
+    doc_freq = Counter()
+    for tokens in doc_tokens:
+        unique_tokens = set(tokens)
+        for token in unique_tokens:
+            doc_freq[token] += 1
+    
+    # Calculate average document length
+    avg_doc_length = sum(len(tokens) for tokens in doc_tokens) / len(doc_tokens) if doc_tokens else 1
+    
+    # Calculate BM25 scores
+    scores = []
+    N = len(documents)  # Total number of documents
+    
+    for i, doc_token_list in enumerate(doc_tokens):
+        score = 0.0
+        doc_length = len(doc_token_list)
+        doc_token_counts = Counter(doc_token_list)
+        
+        for term in query_tokens:
+            if term not in doc_freq:
+                continue
+            
+            # Term frequency in current document
+            tf = doc_token_counts.get(term, 0)
+            
+            # Document frequency (how many documents contain this term)
+            df = doc_freq[term]
+            
+            # Inverse document frequency
+            idf = math.log((N - df + 0.5) / (df + 0.5) + 1.0)
+            
+            # BM25 score component for this term
+            numerator = tf * (k1 + 1)
+            denominator = tf + k1 * (1 - b + b * (doc_length / avg_doc_length))
+            score += idf * (numerator / denominator)
+        
+        scores.append((score, i))
+    
+    # Sort by score (descending) and return top k indices
+    scores.sort(reverse=True, key=lambda x: x[0])
+    return [idx for _, idx in scores[:k]]
+
+
 def extract_topic_metadata(chunk_content: str) -> dict:
     """
     Extract topic and sub-concepts from a document chunk using LLM.
     Returns a dictionary with topic_name and sub_concepts.
     """
     try:
+        # Clean the chunk content before sending to LLM to reduce token usage
+        cleaned_content = clean_markdown(chunk_content)
+        
+        # Limit chunk content length to prevent token overflow (safety check)
+        # Since chunk_size is 2000 characters, we allow up to 2000 chars for topic extraction
+        # Estimate: ~4 characters per token, so 2000 chars ≈ 500 tokens, well under the 32768 token limit
+        MAX_CHUNK_CHARS = 2000  # Match the chunk_size to avoid truncating valid chunks
+        if len(cleaned_content) > MAX_CHUNK_CHARS:
+            cleaned_content = cleaned_content[:MAX_CHUNK_CHARS] + "..."
+            print(f"Warning: Truncated chunk content from {len(chunk_content)} to {MAX_CHUNK_CHARS} characters")
+        
         # First, try with the parser chain
         chain = TOPIC_EXTRACTION_PROMPT | llm
         llm_response = chain.invoke({
-            "chunk_content": chunk_content,
+            "chunk_content": cleaned_content,
             "format_instructions": topic_parser.get_format_instructions()
         })
         
@@ -485,9 +651,34 @@ def resolve_topic_and_concepts(extracted_topic: str, extracted_concepts: list,
         }
     
     try:
+        # Use BM25 search to find similar topics/concepts instead of sending all
+        # This prevents token overflow while keeping the most relevant items
+        MAX_SIMILAR_ITEMS = 50  # Maximum number of similar items to include
+        
+        # Find similar topics using BM25 search
+        if existing_topics and len(existing_topics) > 0:
+            similar_topic_indices = bm25_search(extracted_topic, existing_topics, k=MAX_SIMILAR_ITEMS)
+            limited_topics = [existing_topics[i] for i in similar_topic_indices]
+            if len(existing_topics) > MAX_SIMILAR_ITEMS:
+                print(f"Using BM25 to select {len(limited_topics)} most similar topics from {len(existing_topics)} total topics")
+        else:
+            limited_topics = []
+        
+        # Find similar concepts using BM25 search
+        # Search for each extracted concept and combine results
+        if existing_concepts and len(existing_concepts) > 0 and extracted_concepts:
+            # Combine all extracted concepts into a single query for better matching
+            concepts_query = " ".join(extracted_concepts) if extracted_concepts else ""
+            similar_concept_indices = bm25_search(concepts_query, existing_concepts, k=MAX_SIMILAR_ITEMS)
+            limited_concepts = [existing_concepts[i] for i in similar_concept_indices]
+            if len(existing_concepts) > MAX_SIMILAR_ITEMS:
+                print(f"Using BM25 to select {len(limited_concepts)} most similar concepts from {len(existing_concepts)} total concepts")
+        else:
+            limited_concepts = []
+        
         # Format existing topics and concepts for the prompt
-        existing_topics_str = "\n".join([f"- {topic}" for topic in existing_topics]) if existing_topics else "None"
-        existing_concepts_str = "\n".join([f"- {concept}" for concept in existing_concepts]) if existing_concepts else "None"
+        existing_topics_str = "\n".join([f"- {topic}" for topic in limited_topics]) if limited_topics else "None"
+        existing_concepts_str = "\n".join([f"- {concept}" for concept in limited_concepts]) if limited_concepts else "None"
         extracted_concepts_str = ", ".join(extracted_concepts) if extracted_concepts else "None"
         
         # Use ResolvedTopicResponse parser for resolution
@@ -570,15 +761,20 @@ def resolve_topic_and_concepts(extracted_topic: str, extracted_concepts: list,
 
 
 def chunk_documents(docs):
-    """Split documents into smaller chunks suitable for embedding."""
+    """Split documents into smaller chunks suitable for embedding.
+    Uses character-based chunking to ensure consistent chunk sizes."""
     if not docs or len(docs) == 0:
         error_msg = "ERROR: Cannot chunk documents - no documents provided"
         print(error_msg)
         raise ValueError(error_msg)
 
+    # Use character-based chunking
+    # chunk_size is in characters, not tokens
     splitter = RecursiveCharacterTextSplitter(
-        chunk_size=500,
-        chunk_overlap=100,
+        chunk_size=2000,  # 2000 characters
+        chunk_overlap=500,  # 500 characters overlap
+        length_function=len,  # Explicitly use character length
+        separators=["\n\n", "\n", ". ", " ", ""],  # Character-based separators
     )
     split_docs = splitter.split_documents(docs)
 
