@@ -445,6 +445,41 @@ def query_teaching_material_chunks_by_topics(topics: list, limit: int = None, db
     """
     return query_chunks_by_doc_type_and_topics('teaching_material', topics, limit, db_path, allow_null=True)
 
+def get_concepts_for_topic(topic: str, db_path: str = None):
+    """
+    Get all unique concepts (sub_concepts) for a specific topic from SQLite.
+    Returns a list of unique concept strings.
+    """
+    if db_path is None:
+        db_path = settings.SQLITE_DB_PATH
+    
+    if not os.path.exists(db_path):
+        return []
+    
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    
+    cursor.execute("""
+        SELECT DISTINCT sub_concepts
+        FROM document_chunks
+        WHERE topic_name = ?
+    """, (topic,))
+    
+    results = cursor.fetchall()
+    conn.close()
+    
+    # Extract all concepts from JSON strings
+    all_concepts = set()
+    for (sub_concepts_json,) in results:
+        try:
+            concepts = json.loads(sub_concepts_json)
+            if isinstance(concepts, list):
+                all_concepts.update(c for c in concepts if isinstance(c, str) and c.strip())
+        except (json.JSONDecodeError, TypeError):
+            continue
+    
+    return sorted(list(all_concepts))
+
 
 # --- Vector store for retrieval (used by generator) ---
 # Lazy-load from FAISS when index exists. If not, run ingest first.

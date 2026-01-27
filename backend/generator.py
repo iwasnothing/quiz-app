@@ -5,15 +5,17 @@ import numpy as np
 import json
 import re
 import time
+import random
 from database import (
     vector_store, 
     get_concepts_from_question_bank, 
     query_question_bank_chunks_by_topics,
     query_teaching_material_chunks_by_topics,
+    get_concepts_for_topic,
     get_embeddings,
     settings
 )
-from llm_prompts import llm, quiz_parser, GENERATE_PROMPT, REFINE_PROMPT
+from llm_prompts import llm, quiz_parser, GENERATE_SINGLE_PROMPT, REFINE_PROMPT
 from models import QuizSchema, QuizQuestion
 
 # Use parser from llm_prompts
@@ -250,9 +252,204 @@ def generate_quiz_chain_streaming(
                     yield q
 
 
+def _generate_single_question(
+    topic: str,
+    concept: str,
+    difficulty: str,
+    format_type: str,
+    all_topics: list[str] = None,
+    other_concepts_in_quiz: list[str] = None,
+):
+    """
+    Generate a single question for a specific topic and concept.
+    
+    Args:
+        topic: Single topic name
+        concept: Specific concept to generate question about
+        difficulty: Difficulty level (Easy, Medium, Hard)
+        format_type: Question format (MCQ or Short Answer)
+        all_topics: All topics in the quiz (used to retrieve historical questions for diversity)
+        other_concepts_in_quiz: Concepts already used for other questions in this quiz (avoids overlap)
+    
+    Returns:
+        QuizQuestion object
+    """
+    topics = [topic]
+    topics_for_history = all_topics if all_topics else topics
+    other_concepts_in_quiz = other_concepts_in_quiz or []
+    
+    # Get teaching_material chunks that match the topic and concept
+    teaching_material_chunks = query_teaching_material_chunks_by_topics(topics, limit=50)
+    
+    # Filter chunks that contain the concept
+    concept_chunks = []
+    for chunk in teaching_material_chunks:
+        try:
+            chunk_concepts_json = chunk[2]  # sub_concepts (JSON string)
+            chunk_concepts = json.loads(chunk_concepts_json)
+            if isinstance(chunk_concepts, list) and concept in chunk_concepts:
+                concept_chunks.append(chunk)
+        except (json.JSONDecodeError, TypeError):
+            continue
+    
+    # If no chunks found for this concept, use all chunks for the topic
+    if not concept_chunks:
+        concept_chunks = teaching_material_chunks[:10]
+        print(f"Warning: No chunks found specifically for concept '{concept}', using general topic chunks")
+    
+    # Convert to Document objects
+    teaching_material_docs = [
+        Document(
+            page_content=chunk[3],  # chunk_text
+            metadata={
+                "topic_name": chunk[1],  # topic_name
+                "sub_concepts": chunk[2],  # sub_concepts (JSON string)
+                "source": chunk[4],  # source
+                "doc_type": chunk[5]  # doc_type
+            }
+        )
+        for chunk in concept_chunks[:10]
+    ]
+    
+    if teaching_material_docs:
+        context_text = "\n\n".join([d.page_content for d in teaching_material_docs])
+    else:
+        context_text = f"Generate a question about the concept '{concept}' in the topic '{topic}'."
+    
+    # Get historical questions for diversity
+    historical_questions = query_question_bank_chunks_by_topics(topics_for_history, limit=15)
+    
+    if historical_questions:
+        historical_text = "HISTORICAL QUESTIONS FROM QUESTION BANKS:\n" + "\n\n---\n\n".join(historical_questions[:10])
+        diversity_instruction = (
+            "CRITICAL DIVERSITY REQUIREMENT: The questions below are examples of previously generated questions. "
+            "You MUST generate a NEW question that is DIFFERENT and DIVERSE from these historical examples. "
+            "Avoid repeating the same question structure, wording, or phrasing patterns."
+        )
+    else:
+        historical_text = ""
+        diversity_instruction = "Generate a diverse question that covers the concept from a unique angle."
+
+    # Reinforce concept-based diversification: this question tests ONLY this concept; others cover different concepts
+    if other_concepts_in_quiz:
+        diversity_instruction += (
+            f"\n\nThis quiz already has questions on these concepts: {', '.join(other_concepts_in_quiz)}. "
+            f"Your question MUST focus ONLY on \"{concept}\" and must NOT overlap with those. "
+            "Ensure the question is clearly distinct and tests this specific concept."
+        )
+    else:
+        diversity_instruction += (
+            f"\n\nThis question must focus ONLY on the concept \"{concept}\". "
+            "Other questions in this quiz cover different concepts—keep this one clearly concept-specific."
+        )
+    
+    # Add format constraint
+    format_constraint = ""
+    if format_type == "MCQ":
+        format_constraint = "IMPORTANT: The question must be Multiple Choice (MCQ) format with 3-4 options."
+    elif format_type == "Short Answer":
+        format_constraint = "IMPORTANT: The question must be Short Answer format (no multiple choice options)."
+    
+    # Prepare prompt inputs for single question
+    prompt_inputs = {
+        "context": context_text,
+        "historical_questions": historical_text,
+        "diversity_instruction": diversity_instruction,
+        "topic": topic,
+        "concept": concept,
+        "difficulty": difficulty,
+        "format_type": format_type,
+        "format_instructions": parser.get_format_instructions() + "\n\n" + format_constraint,
+    }
+    
+    # Generate single question
+    raw_chain = GENERATE_SINGLE_PROMPT | llm
+    chain = GENERATE_SINGLE_PROMPT | llm | parser
+    
+    max_retries = settings.LLM_MAX_RETRIES
+    attempt = 0
+    
+    while attempt < max_retries:
+        try:
+            raw_output = raw_chain.invoke(prompt_inputs)
+            raw_content = str(raw_output.content).strip()
+            
+            if not raw_content or len(raw_content.strip()) == 0:
+                attempt += 1
+                if attempt < max_retries:
+                    print(f"⚠ LLM returned empty output. Retrying... (attempt {attempt}/{max_retries})")
+                    time.sleep(3)
+                    continue
+                else:
+                    raise ValueError(f"LLM returned empty output after {max_retries} attempts.")
+            
+            try:
+                result = parser.parse(raw_content)
+                # Extract single question from result
+                def _to_question(q_dict: dict) -> QuizQuestion:
+                    q = dict(q_dict)
+                    q.setdefault("id", "q_temp")
+                    q["topic"] = topic
+                    q["concept"] = concept
+                    return QuizQuestion(**q)
+
+                if isinstance(result, dict):
+                    questions_data = result.get("questions", [])
+                    if questions_data:
+                        return _to_question(questions_data[0])
+                    else:
+                        return _to_question(result)
+                elif isinstance(result, QuizSchema):
+                    if result.questions:
+                        q = result.questions[0]
+                        # Update topic and concept
+                        q_dict = q.model_dump() if hasattr(q, 'model_dump') else q.dict()
+                        q_dict["topic"] = topic
+                        q_dict["concept"] = concept
+                        return QuizQuestion(**q_dict)
+                    else:
+                        raise ValueError("No questions in result")
+                break
+            except Exception as parse_error:
+                # Try to extract JSON manually
+                json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_content, re.DOTALL)
+                if json_match:
+                    json_str = json_match.group(1)
+                    try:
+                        parsed_json = json.loads(json_str)
+                        questions_data = parsed_json.get("questions", [])
+                        q_dict = questions_data[0] if questions_data else parsed_json
+                        q_dict = dict(q_dict)
+                        q_dict.setdefault("id", "q_temp")
+                        q_dict["topic"] = topic
+                        q_dict["concept"] = concept
+                        return QuizQuestion(**q_dict)
+                    except Exception:
+                        pass
+                
+                attempt += 1
+                if attempt < max_retries:
+                    print(f"⚠ Parser failed. Retrying... (attempt {attempt}/{max_retries})")
+                    time.sleep(3)
+                    continue
+                else:
+                    raise
+        except Exception as e:
+            attempt += 1
+            if attempt < max_retries:
+                print(f"⚠ Error occurred: {e}. Retrying... (attempt {attempt}/{max_retries})")
+                time.sleep(3)
+                continue
+            else:
+                raise
+    
+    raise ValueError(f"Failed to generate question after {max_retries} attempts")
+
+
 def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: str, all_topics: list[str] = None):
     """
     Internal helper to generate a batch of questions with specific difficulty and format.
+    Each question is generated for a randomly selected concept from the topic.
     
     Args:
         topic: Single topic name for this batch
@@ -264,361 +461,71 @@ def _generate_quiz_batch(topic: str, difficulty: str, count: int, format_type: s
     # Convert topic to list (in case multiple topics are passed as comma-separated string)
     topics = [t.strip() for t in topic.split(',')] if ',' in topic else [topic]
     
-    # Use all_topics if provided, otherwise use just this topic
-    topics_for_history = all_topics if all_topics else topics
+    # Get all concepts for this topic
+    topic_concepts = get_concepts_for_topic(topic)
+    if not topic_concepts:
+        # Fallback: try to get concepts from question_bank
+        topic_concepts = get_concepts_from_question_bank(topics)
+        print(f"Warning: No concepts found in SQLite for topic '{topic}', using concepts from question_bank")
     
-    # Step 1: Get concepts from question_bank that are commonly tested for these topics
-    concepts = get_concepts_from_question_bank(topics)
-    print(f"Found {len(concepts)} concepts from question_bank for topics: {topics}")
+    if not topic_concepts:
+        raise ValueError(f"No concepts found for topic '{topic}'. Please ensure the topic has been ingested with concepts.")
     
-    # Step 2: Use concepts to search teaching_material chunks via vector similarity
-    # Strategy: Get candidate chunks from SQLite, then use vector similarity to rank them
+    print(f"Found {len(topic_concepts)} concepts for topic '{topic}'")
     
-    # Get teaching_material chunks from SQLite that match the topics
-    teaching_material_chunks = query_teaching_material_chunks_by_topics(topics, limit=50)
-    print(f"Found {len(teaching_material_chunks)} teaching_material chunks from SQLite for topics: {topics}")
+    # Assign concepts to diversify questions: use distinct concepts first, then allow repeats if needed
+    n_distinct = min(count, len(topic_concepts))
+    concept_assignments: list[str] = list(random.sample(topic_concepts, n_distinct))
+    while len(concept_assignments) < count:
+        concept_assignments.append(random.choice(topic_concepts))
+    random.shuffle(concept_assignments)
+    print(f"Concept assignment for {count} questions: {[c for c in concept_assignments]}")
     
-    if teaching_material_chunks:
-        # Convert SQLite chunks to Document objects for vector similarity search
-        candidate_docs = [
-            Document(
-                page_content=chunk[3],  # chunk_text
-                metadata={
-                    "topic_name": chunk[1],  # topic_name
-                    "sub_concepts": chunk[2],  # sub_concepts (JSON string)
-                    "source": chunk[4],  # source
-                    "doc_type": chunk[5]  # doc_type
-                }
+    # Track concepts already used in this batch (for prompt diversity hint)
+    concepts_used_so_far: list[str] = []
+    
+    # Generate questions one at a time, each with its assigned concept
+    questions = []
+    for i in range(count):
+        selected_concept = concept_assignments[i]
+        print(f"Generating question {i+1}/{count} for topic '{topic}' on concept '{selected_concept}'")
+        
+        try:
+            question = _generate_single_question(
+                topic, selected_concept, difficulty, format_type, all_topics,
+                other_concepts_in_quiz=concepts_used_so_far,
             )
-            for chunk in teaching_material_chunks
-        ]
-        
-        # Use concepts as query for vector similarity search
-        concept_query = " ".join(concepts[:10]) if concepts else topic
-        
-        # Try to use embeddings for similarity search, fallback to simple text matching if connection fails
-        try:
-            embeddings_obj = get_embeddings()
-            if embeddings_obj is None:
-                raise ValueError("Embeddings not available")
-            
-            # Embed the query
-            query_embedding = embeddings_obj.embed_query(concept_query)
-            
-            # Calculate similarity scores for each candidate document
-            # Embed all candidate documents
-            candidate_texts = [doc.page_content for doc in candidate_docs]
-            candidate_embeddings = embeddings_obj.embed_documents(candidate_texts)
-            
-            # Calculate cosine similarity (simple dot product since embeddings are normalized)
-            similarities = []
-            query_embedding_np = np.array(query_embedding)
-            for candidate_emb in candidate_embeddings:
-                candidate_emb_np = np.array(candidate_emb)
-                # Cosine similarity
-                similarity = np.dot(query_embedding_np, candidate_emb_np) / (
-                    np.linalg.norm(query_embedding_np) * np.linalg.norm(candidate_emb_np)
-                )
-                similarities.append(similarity)
-            
-            # Sort by similarity and get top k
-            doc_similarities = list(zip(candidate_docs, similarities))
-            doc_similarities.sort(key=lambda x: x[1], reverse=True)
-            teaching_material_docs = [doc for doc, score in doc_similarities[:10]]
-            
-            print(f"Selected top {len(teaching_material_docs)} teaching_material chunks by similarity to concepts")
+            questions.append(question)
+            concepts_used_so_far.append(selected_concept)
         except Exception as e:
-            print(f"⚠ Warning: Embedding similarity search failed: {e}")
-            print(f"  Falling back to using all candidate chunks (no similarity ranking)")
-            # Fallback: use all candidate docs without similarity ranking
-            teaching_material_docs = candidate_docs[:10]
-    else:
-        # Fallback: Use vector store directly if SQLite doesn't have results
-        print("No teaching_material found in SQLite, trying vector store directly...")
-        concept_query = " ".join(concepts[:10]) if concepts else topic
-        
-        if vector_store is None:
-            print("Warning: Vector store is not available. Generating questions without context.")
-            teaching_material_docs = []
-        else:
-            try:
-                # Try with filter first (allow teaching_material or NULL doc_type)
-                retriever = vector_store.as_retriever(
-                    search_kwargs={
-                        "k": 10
-                        # Note: Filtering by doc_type is done manually below to allow NULL values
-                    }
-                )
-                teaching_material_docs = retriever.invoke(concept_query)
-                # Filter results manually: allow "teaching_material" or NULL/None doc_type
-                teaching_material_docs = [
-                    doc for doc in teaching_material_docs 
-                    if doc.metadata.get("doc_type") == "teaching_material" or doc.metadata.get("doc_type") is None
-                ]
-            except Exception as e:
-                error_msg = str(e)
-                # Check if it's a connection error
-                if "Connection" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower():
-                    print(f"⚠ Connection error to embedding service: {error_msg}")
-                    print(f"  Check that embedding service is running at {settings.EMBEDDING_BASE_URL}")
-                else:
-                    print(f"⚠ Filtered search failed: {error_msg}, trying without filter...")
+            print(f"⚠ Error generating question {i+1} for concept '{selected_concept}': {e}")
+            # Retry with a different concept (prefer unused concepts)
+            alternatives = [c for c in topic_concepts if c != selected_concept]
+            if alternatives:
+                alt = random.choice(alternatives)
+                print(f"Retrying with concept '{alt}'")
                 try:
-                    retriever = vector_store.as_retriever(search_kwargs={"k": 10})
-                    teaching_material_docs = retriever.invoke(concept_query)
-                    # Filter results manually: allow "teaching_material" or NULL/None doc_type
-                    teaching_material_docs = [
-                        doc for doc in teaching_material_docs 
-                        if doc.metadata.get("doc_type") == "teaching_material" or doc.metadata.get("doc_type") is None
-                    ]
+                    question = _generate_single_question(
+                        topic, alt, difficulty, format_type, all_topics,
+                        other_concepts_in_quiz=concepts_used_so_far,
+                    )
+                    questions.append(question)
+                    concepts_used_so_far.append(alt)
                 except Exception as e2:
-                    error_msg2 = str(e2)
-                    if "Connection" in error_msg2 or "connection" in error_msg2.lower() or "refused" in error_msg2.lower():
-                        print(f"⚠ Vector store retrieval failed due to connection error: {error_msg2}")
-                        print(f"  Check that embedding service is running at {settings.EMBEDDING_BASE_URL}")
-                    else:
-                        print(f"⚠ Vector store retrieval failed: {error_msg2}")
-                    print("  Generating without context.")
-                    teaching_material_docs = []
-    
-    if teaching_material_docs:
-        context_text = "\n\n".join([d.page_content for d in teaching_material_docs])
-        print(f"Retrieved {len(teaching_material_docs)} teaching_material chunks as context")
-    else:
-        context_text = f"No teaching material context available for topics: {topics}. Please ensure documents have been ingested and contain content related to these topics."
-        print(f"Warning: No teaching material context found. Generating questions based on topic knowledge only.")
-    
-    # Step 3: Get question_bank chunks as historical examples (retrieve more for better diversity)
-    # Retrieve historical questions from all topics to ensure diversity
-    historical_questions = query_question_bank_chunks_by_topics(topics_for_history, limit=15)
-    print(f"Retrieved {len(historical_questions)} historical question_bank chunks for diversity reference")
-    
-    # Format historical questions section
-    if historical_questions:
-        historical_text = "HISTORICAL QUESTIONS FROM QUESTION BANKS:\n" + "\n\n---\n\n".join(historical_questions)
-        diversity_instruction = (
-            "CRITICAL DIVERSITY REQUIREMENT: The questions below are examples of previously generated questions. "
-            "You MUST generate NEW questions that are DIFFERENT and DIVERSE from these historical examples. "
-            "Avoid:\n"
-            "   - Repeating the same question structure or wording\n"
-            "   - Asking about the exact same concepts in the same way\n"
-            "   - Using similar phrasing or question patterns\n"
-            "Instead, create questions that:\n"
-            "   - Cover different aspects or angles of the topic\n"
-            "   - Use varied question structures and wording\n"
-            "   - Test different sub-concepts or applications\n"
-            "   - Present information in novel ways\n"
-            "Study these historical questions to understand the style and format, but ensure your generated questions are DISTINCT and DIVERSE."
-        )
-        few_shot_instruction = (
-            "Study the historical questions to understand:\n"
-            "   - What types of concepts are typically tested\n"
-            "   - The style and format of questions used in past assessments\n"
-            "   - The level of detail expected in answers\n"
-            "BUT ensure your generated questions are DIFFERENT and more DIVERSE than these examples."
-        )
-        and_examples = " and the patterns shown in the historical examples (but ensure diversity)"
-        distractor_note = " similar to those in the examples (but with variety)"
-    else:
-        historical_text = ""
-        diversity_instruction = (
-            "Generate diverse questions that cover different aspects and angles of the topic. "
-            "Ensure variety in question structure, wording, and the concepts being tested."
-        )
-        if teaching_material_docs:
-            few_shot_instruction = "Generate diverse questions based on the teaching materials context."
-        else:
-            few_shot_instruction = "Generate diverse questions based on general knowledge of the topics."
-        and_examples = ""
-        distractor_note = ""
-
-    # Step 4: Generate with context and few-shot examples
-    # First, get raw LLM output for debugging
-    raw_chain = GENERATE_PROMPT | llm
-    chain = GENERATE_PROMPT | llm | parser
-    
-    # Add format constraint to prompt
-    format_constraint = ""
-    if format_type == "MCQ":
-        format_constraint = "IMPORTANT: All questions must be Multiple Choice (MCQ) format with 3-4 options."
-    elif format_type == "Short Answer":
-        format_constraint = "IMPORTANT: All questions must be Short Answer format (no multiple choice options)."
-    
-    # Prepare prompt inputs
-    prompt_inputs = {
-        "context": context_text,
-        "historical_questions": historical_text,
-        "diversity_instruction": diversity_instruction,
-        "few_shot_instruction": few_shot_instruction,
-        "and_examples": and_examples,
-        "distractor_note": distractor_note,
-        "topic": topic,
-        "difficulty": difficulty,
-        "num_questions": count,
-        "format_instructions": parser.get_format_instructions() + "\n\n" + format_constraint
-    }
-    
-    result = None
-    max_retries = settings.LLM_MAX_RETRIES
-    attempt = 0
-    last_error = None
-    last_raw_content = None
-    
-    print(f"DEBUG: Using max retries: {max_retries}")
-    while attempt < max_retries:
-        try:
-            # Get raw LLM output first for debugging
-            print(f"\n{'='*80}")
-            if attempt > 0:
-                print(f"DEBUG: RETRY ATTEMPT {attempt}/{max_retries-1}")
-            print(f"DEBUG: Invoking LLM for topic: {topic}, difficulty: {difficulty}, count: {count}")
-            print(f"{'='*80}")
-            
-            raw_output = raw_chain.invoke(prompt_inputs)
-            raw_content = str(raw_output.content).strip()
-            last_raw_content = raw_content  # Store for error reporting
-            
-            print(f"\nDEBUG: Raw LLM output length: {len(raw_content)} characters")
-            print(f"DEBUG: Raw LLM output (first 1000 chars):\n{raw_content[:1000]}")
-            if len(raw_content) > 1000:
-                print(f"DEBUG: ... (truncated, showing last 500 chars) ...\n{raw_content[-500:]}")
-            print(f"{'='*80}\n")
-            
-            # Check if output is empty or just whitespace
-            if not raw_content or len(raw_content.strip()) == 0:
-                attempt += 1
-                last_error = "LLM returned empty output"
-                if attempt < max_retries:
-                    print(f"⚠ LLM returned empty output. Retrying... (attempt {attempt}/{max_retries})")
-                    time.sleep(3)  # Wait 3 seconds before retry
+                    print(f"⚠ Failed to generate question after retry: {e2}")
                     continue
-                else:
-                    raise ValueError(f"LLM returned empty output after {max_retries} attempts. This may indicate an issue with the LLM service.")
-            
-            # Now parse the raw output
-            try:
-                result = parser.parse(raw_content)
-                print(f"✓ Successfully parsed JSON from LLM output")
-                break  # Success, exit retry loop
-            except Exception as parse_error:
-                print(f"⚠ Parser failed on raw output: {parse_error}")
-                # Try to extract JSON manually from the raw_content we already have
-                error_msg = str(parse_error)
-                
-                # Handle JSON parsing errors specifically
-                if isinstance(parse_error, OutputParserException) or "JSONDecodeError" in error_msg or "Invalid json output" in error_msg:
-                    print(f"⚠ JSON parsing error: {error_msg}")
-                    print(f"⚠ Attempting to extract JSON from raw output...")
-                    
-                    # Try to find JSON in markdown code blocks
-                    json_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', raw_content, re.DOTALL)
-                    if json_match:
-                        json_str = json_match.group(1)
-                        print(f"⚠ Found JSON in markdown block, attempting to parse...")
-                        try:
-                            parsed_json = json.loads(json_str)
-                            result = parsed_json
-                            print(f"✓ Successfully parsed JSON from markdown block")
-                            break  # Success, exit retry loop
-                        except json.JSONDecodeError as je:
-                            print(f"⚠ Failed to parse extracted JSON: {je}")
-                            # Continue to retry
-                    else:
-                        # Try to find JSON object directly
-                        json_match = re.search(r'\{.*\}', raw_content, re.DOTALL)
-                        if json_match:
-                            json_str = json_match.group(0)
-                            print(f"⚠ Found JSON object in output, attempting to parse...")
-                            try:
-                                parsed_json = json.loads(json_str)
-                                result = parsed_json
-                                print(f"✓ Successfully parsed JSON from output")
-                                break  # Success, exit retry loop
-                            except json.JSONDecodeError as je:
-                                print(f"⚠ Failed to parse extracted JSON: {je}")
-                                # Continue to retry
-                        else:
-                            # No JSON found, retry if we have attempts left
-                            attempt += 1
-                            last_error = f"No JSON found in output: {error_msg}"
-                            if attempt < max_retries:
-                                print(f"⚠ No JSON found in output. Full raw output:\n{raw_content}")
-                                print(f"⚠ Retrying... (attempt {attempt}/{max_retries})")
-                                time.sleep(3)  # Wait 3 seconds before retry
-                                continue
-                            else:
-                                # Show full output in error message
-                                raise ValueError(
-                                    f"LLM returned empty or non-JSON output after {max_retries} attempts.\n"
-                                    f"Full raw output ({len(raw_content)} chars):\n{raw_content}"
-                                ) from parse_error
-                else:
-                    # Not a JSON parsing error, retry if we have attempts left
-                    attempt += 1
-                    last_error = f"Unexpected error: {error_msg}"
-                    if attempt < max_retries:
-                        print(f"⚠ Unexpected error: {error_msg}. Retrying... (attempt {attempt}/{max_retries})")
-                        time.sleep(3)  # Wait 3 seconds before retry
-                        continue
-                    else:
-                        raise
-        except Exception as e:
-            error_msg = str(e)
-            last_error = error_msg
-            
-            # Handle connection errors - don't retry these
-            if "Connection" in error_msg or "connection" in error_msg.lower() or "refused" in error_msg.lower():
-                print(f"⚠ Connection error to LLM service: {error_msg}")
-                print(f"  Check that LLM service is running at {settings.LLM_BASE_URL}")
-                raise
-            
-            # For other errors, retry if we have attempts left
-            attempt += 1
-            if attempt < max_retries:
-                print(f"⚠ Error occurred: {error_msg}. Retrying... (attempt {attempt}/{max_retries})")
-                time.sleep(3)  # Wait 3 seconds before retry
-                continue
             else:
-                # Re-raise other exceptions after all retries exhausted
-                raise
+                print(f"⚠ Skipping question {i+1} due to error")
+                continue
     
-    # Ensure we have a result - this should only happen if loop exits without break or raise
-    if result is None:
-        error_details = f"Topic: {topic}, Difficulty: {difficulty}, Count: {count}"
-        if last_error:
-            error_details += f"\nLast error: {last_error}"
-        if last_raw_content:
-            error_details += f"\nLast raw output ({len(last_raw_content)} chars):\n{last_raw_content[:1000]}"
-        raise ValueError(f"Failed to generate quiz after {max_retries} attempts. {error_details}")
+    if not questions:
+        raise ValueError(f"Failed to generate any questions for topic '{topic}'")
     
-    # Convert dict result to QuizSchema object
-    # The parser returns a dict, but we need a QuizSchema object
-    if isinstance(result, dict):
-        # Ensure questions is a list of QuizQuestion objects
-        questions = []
-        questions_data = result.get("questions", [])
-        
-        if not questions_data:
-            raise ValueError(f"No questions returned from LLM for topic: {topic}, difficulty: {difficulty}, count: {count}")
-        
-        for q_dict in questions_data:
-            try:
-                # Convert each question dict to QuizQuestion object
-                questions.append(QuizQuestion(**q_dict))
-            except Exception as e:
-                print(f"Error converting question dict to QuizQuestion: {e}")
-                print(f"Question dict: {q_dict}")
-                raise
-        
-        return QuizSchema(
-            title=result.get("title", f"Quiz: {topic}"),
-            questions=questions
-        )
-    elif isinstance(result, QuizSchema):
-        # If it's already a QuizSchema, return as-is
-        return result
-    else:
-        raise TypeError(f"Unexpected result type from chain: {type(result)}. Expected dict or QuizSchema.")
+    return QuizSchema(
+        title=f"Quiz: {topic}",
+        questions=questions
+    )
+
 
 def refine_question_chain(question_data: dict, feedback: str):
     # 1. Retrieve Context specific to this question
@@ -629,9 +536,6 @@ def refine_question_chain(question_data: dict, feedback: str):
         retriever = vector_store.as_retriever(search_kwargs={"k": 2})
         docs = retriever.invoke(question_data['question_text'])
         context_text = "\n\n".join([d.page_content for d in docs])
-
-    # 2. Parse just one question
-    question_parser = JsonOutputParser(pydantic_object=QuizSchema) # Using same parser mostly fine, or define specific
 
     chain = REFINE_PROMPT | llm | JsonOutputParser()
     

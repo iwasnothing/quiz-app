@@ -19,6 +19,8 @@ export interface QuizQuestion {
   correct_answer: string;
   marking_rubric?: string;
   source_context?: string;
+  topic?: string;
+  concept?: string;
 }
 
 export interface QuizResponse {

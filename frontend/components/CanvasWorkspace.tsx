@@ -23,6 +23,8 @@ function convertApiQuestion(apiQ: ApiQuizQuestion): QuizQuestion {
     question_text: apiQ.question_text,
     options: apiQ.options || null,
     correct_answer: apiQ.correct_answer,
+    topic: apiQ.topic,
+    concept: apiQ.concept,
   };
 }
 

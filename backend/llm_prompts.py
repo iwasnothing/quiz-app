@@ -101,6 +101,57 @@ FORMAT:
 {format_instructions}
 """)
 
+GENERATE_SINGLE_PROMPT = ChatPromptTemplate.from_template("""
+You are an expert teacher creating a closed-book quiz question. Students will NOT have access to any context, articles, or teaching materials.
+
+REMINDER — CLOSED-BOOK, NO CONTEXT REFERENCES:
+Do NOT use "according to the context", "according to the article", "based on the reading", "from the text", or "as mentioned in". Students see only the question. Just state the question directly. Never refer to context or articles in the question_text.
+
+REFERENCE MATERIAL (for your knowledge only - students will NOT see this):
+{context}
+
+{historical_questions}
+
+{diversity_instruction}
+
+TASK:
+Generate ONE quiz question with the following specifications:
+- Topic: {topic}
+- Specific Concept to Test: {concept}
+- Difficulty: {difficulty}
+
+CRITICAL REQUIREMENTS:
+1. The question must test the specific concept: "{concept}"
+2. CLOSED-BOOK: Students get ONLY the question. No context or articles. Generate the question directly—do not mention context, articles, or readings.
+3. NEVER write "according to the context", "according to the article", "based on the reading", "from the text", or "as mentioned in". Just state the question.
+4. The question should be self-contained and answerable without any source material. State it as testing general knowledge.
+5. Provide a clear marking rubric.
+6. For MCQs: provide 3-4 plausible options.
+7. Ensure the question is DIFFERENT from the historical examples shown above.
+8. DIVERSIFY BY CONCEPT: This quiz assigns each question a different concept. Target ONLY "{concept}"; do not mix in other concepts.
+
+GOOD (state directly):
+"What is the primary function of mitochondria in a cell?"
+
+BAD (mentions context/article):
+"According to the article, what is the primary function of mitochondria?"
+"Based on the context, what is the primary function of mitochondria?"
+
+OUTPUT FORMAT:
+Return a JSON object with a "questions" array containing exactly ONE question object with:
+- type: {format_type} (must be either "MCQ" or "Short Answer")
+- difficulty: {difficulty}
+- question_text: the question ONLY—state it directly. Do NOT use "according to the context/article" or similar. Closed-book.
+- options: array of options (only if MCQ, otherwise null)
+- correct_answer: the correct answer
+- marking_rubric: how to grade this question
+- source_context: brief note about the concept being tested (for teacher reference only)
+
+CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, markdown formatting, or code blocks. Output ONLY the raw JSON object.
+
+{format_instructions}
+""")
+
 REFINE_PROMPT = ChatPromptTemplate.from_template("""
 You are editing a specific quiz question based on teacher feedback.
 

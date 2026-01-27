@@ -25,6 +25,8 @@ class QuizQuestion(BaseModel):
     correct_answer: str
     marking_rubric: str = Field(description="Guide for the teacher on how to grade this")
     source_context: str = Field(description="The specific text snippet used to generate this")
+    topic: Optional[str] = Field(default=None, description="Topic used to generate this question")
+    concept: Optional[str] = Field(default=None, description="Concept used to generate this question")
 
 class QuizSchema(BaseModel):
     title: str

@@ -9,6 +9,8 @@ export interface QuizQuestion {
   question_text: string;
   options: string[] | null;
   correct_answer: string;
+  topic?: string;
+  concept?: string;
 }
 
 export const MOCK_QUESTIONS: QuizQuestion[] = [
