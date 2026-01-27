@@ -94,8 +94,8 @@ def create_quiz(request: GenerateQuizRequest):
                 complexity_hard=request.complexityHard,
                 format_mc=request.formatMC
             ):
-                # Convert QuizQuestion to dict for JSON serialization
-                question_dict = question.dict()
+                # Convert QuizQuestion to dict for JSON (include topic, concept)
+                question_dict = question.model_dump() if hasattr(question, 'model_dump') else question.dict()
                 yield f"data: {json.dumps({'type': 'question', 'question': question_dict})}\n\n"
             
             # Send completion signal

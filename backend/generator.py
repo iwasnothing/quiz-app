@@ -21,6 +21,32 @@ from models import QuizSchema, QuizQuestion
 # Use parser from llm_prompts
 parser = quiz_parser
 
+# Forbidden phrases for closed-book quizzes (students see only the question)
+_FORBIDDEN_PHRASES = [
+    r"\baccording to the (?:context|article|text|reading|passage)\b",
+    r"\bbased on the (?:context|article|text|reading|passage)\b",
+    r"\bfrom the (?:context|article|text|reading|passage)\b",
+    r"\bas (?:mentioned|stated|described) in the (?:context|article|text|reading|passage)\b",
+    r"\bin the (?:context|article|text|reading|passage)\b",
+]
+_FORBIDDEN_PATTERN = re.compile("|".join(f"({p})" for p in _FORBIDDEN_PHRASES), re.IGNORECASE)
+
+
+def _strip_forbidden_phrases(text: str) -> str:
+    """Remove 'according to the article/context' etc. from question text. Closed-book; students have no context."""
+    if not text or not isinstance(text, str):
+        return text
+    orig = text
+    t = _FORBIDDEN_PATTERN.sub("", text)
+    t = re.sub(r"^\s*[,.\s]+\s*", "", t)
+    t = re.sub(r"\s{2,}", " ", t).strip()
+    if not t:
+        return orig
+    # Capitalize first letter if we stripped something (e.g. "what is X?" -> "What is X?")
+    if t and t[0].islower() and len(t) > 1:
+        t = t[0].upper() + t[1:]
+    return t
+
 def generate_quiz_chain(
     topics: list[str],
     count: int,
@@ -391,6 +417,8 @@ def _generate_single_question(
                     q.setdefault("id", "q_temp")
                     q["topic"] = topic
                     q["concept"] = concept
+                    if "question_text" in q and q["question_text"]:
+                        q["question_text"] = _strip_forbidden_phrases(q["question_text"])
                     return QuizQuestion(**q)
 
                 if isinstance(result, dict):
@@ -402,10 +430,12 @@ def _generate_single_question(
                 elif isinstance(result, QuizSchema):
                     if result.questions:
                         q = result.questions[0]
-                        # Update topic and concept
+                        # Update topic and concept; strip forbidden phrases
                         q_dict = q.model_dump() if hasattr(q, 'model_dump') else q.dict()
                         q_dict["topic"] = topic
                         q_dict["concept"] = concept
+                        if q_dict.get("question_text"):
+                            q_dict["question_text"] = _strip_forbidden_phrases(q_dict["question_text"])
                         return QuizQuestion(**q_dict)
                     else:
                         raise ValueError("No questions in result")
@@ -423,6 +453,8 @@ def _generate_single_question(
                         q_dict.setdefault("id", "q_temp")
                         q_dict["topic"] = topic
                         q_dict["concept"] = concept
+                        if q_dict.get("question_text"):
+                            q_dict["question_text"] = _strip_forbidden_phrases(q_dict["question_text"])
                         return QuizQuestion(**q_dict)
                     except Exception:
                         pass

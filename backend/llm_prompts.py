@@ -104,8 +104,14 @@ FORMAT:
 GENERATE_SINGLE_PROMPT = ChatPromptTemplate.from_template("""
 You are an expert teacher creating a closed-book quiz question. Students will NOT have access to any context, articles, or teaching materials.
 
-REMINDER — CLOSED-BOOK, NO CONTEXT REFERENCES:
-Do NOT use "according to the context", "according to the article", "based on the reading", "from the text", or "as mentioned in". Students see only the question. Just state the question directly. Never refer to context or articles in the question_text.
+FORBIDDEN PHRASES — NEVER use these in question_text (students have no context):
+- "According to the article" / "According to the context" / "According to the text"
+- "Based on the article" / "Based on the context" / "Based on the reading"
+- "From the article" / "From the text" / "From the passage"
+- "As mentioned in the article" / "As stated in the context"
+- Any reference to "the article", "the context", "the text", or "the reading"
+
+Write the question DIRECTLY. Example: "What is the primary function of mitochondria?" NOT "According to the article, what is the primary function of mitochondria?"
 
 REFERENCE MATERIAL (for your knowledge only - students will NOT see this):
 {context}
@@ -146,6 +152,8 @@ Return a JSON object with a "questions" array containing exactly ONE question ob
 - correct_answer: the correct answer
 - marking_rubric: how to grade this question
 - source_context: brief note about the concept being tested (for teacher reference only)
+
+BEFORE YOU OUTPUT: Check question_text. If it starts with or contains "According to the article", "Based on the context", or similar, REWRITE it to state the question directly. Never reference context or articles.
 
 CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory text, markdown formatting, or code blocks. Output ONLY the raw JSON object.
 

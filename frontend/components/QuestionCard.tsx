@@ -44,13 +44,13 @@ export default function QuestionCard({ question, index, onRefine, onReroll, onDe
               <DifficultyBadge difficulty={question.difficulty} />
             </div>
           </div>
-          {(question.topic || question.concept) && (
-            <div className="mb-2 text-xs text-zinc-500">
-              {question.topic && <span>Topic: <span className="text-zinc-400">{question.topic}</span></span>}
-              {question.topic && question.concept && <span className="mx-1.5">·</span>}
-              {question.concept && <span>Concept: <span className="text-zinc-400">{question.concept}</span></span>}
-            </div>
-          )}
+          <div className="mb-2 rounded-md bg-white/5 px-2.5 py-1.5 text-xs text-zinc-400">
+            <span className="text-zinc-500">Topic:</span>{" "}
+            <span className="font-medium text-zinc-300">{question.topic ?? "—"}</span>
+            <span className="mx-1.5 text-zinc-600">·</span>
+            <span className="text-zinc-500">Concept:</span>{" "}
+            <span className="font-medium text-zinc-300">{question.concept ?? "—"}</span>
+          </div>
           {editing ? (
             <textarea
               value={text}
