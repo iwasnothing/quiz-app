@@ -7,5 +7,4 @@ RUN npm install -g localtunnel
 # Expose the local port you want to tunnel (optional but conventional)
 EXPOSE 3000
 
-# Default command: start localtunnel on port 3000
-CMD ["lt", "--port", "3000"]
+# Command is specified in docker-compose.yml
