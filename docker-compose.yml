@@ -6,6 +6,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      network: host
       args:
         # NEXT_PUBLIC_* vars must be available at build time
         - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://spark-cda3.local:8080}
