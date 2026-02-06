@@ -160,6 +160,30 @@ CRITICAL: You MUST respond with ONLY valid JSON. Do not include any explanatory 
 {format_instructions}
 """)
 
+GENERATE_QUIZ_CONCEPTS_PROMPT = ChatPromptTemplate.from_template("""
+/no_think
+
+You are an expert teacher. Given teaching material chunks, extract K distinct, unique, and testable key concepts or facts.
+
+TEACHING MATERIAL CHUNKS:
+{chunks}
+
+TOPIC: {topic}
+
+INSTRUCTIONS:
+1. Extract exactly {k} distinct key concepts or facts that can be tested in quiz questions.
+2. Each concept MUST be UNIQUE and DISTINCT—do not include similar or overlapping concepts.
+3. Concepts must be TESTABLE (students can be asked questions about them).
+4. Concepts must be grounded in the provided chunks—do not invent concepts not supported by the text.
+5. Describe each concept briefly using meaningful and important keywords (short phrases, not full sentences).
+6. Do NOT use item numbers, bullet numbers, or labels such as "Point 1", "2.", "3)", "A.", "B)", "C.", or similar. Each concept must be a plain phrase with no prefix.
+
+Return ONLY a JSON object with a single key "concepts" containing an array of exactly {k} strings.
+Example: {{"concepts": ["role of mitochondria in energy production", "relationship between force and acceleration", "factors affecting chemical reaction rate"]}}
+
+CRITICAL: Output ONLY valid JSON. No reasoning, no markdown, no code blocks.
+""")
+
 REFINE_PROMPT = ChatPromptTemplate.from_template("""
 You are editing a specific quiz question based on teacher feedback.
 
@@ -175,4 +199,15 @@ TEACHER FEEDBACK:
 INSTRUCTIONS:
 Update the question fields to address the feedback. Keep the ID the same.
 Return ONLY the single JSON object for this question.
+""")
+
+# --- Translation for similarity validation (Chinese -> English) ---
+TRANSLATE_TO_ENGLISH_PROMPT = ChatPromptTemplate.from_template("""
+/no_think
+
+Translate the following text to English. If the text is already in English, return it unchanged.
+Output ONLY the English translation, no explanation or quotes.
+
+TEXT:
+{text}
 """)

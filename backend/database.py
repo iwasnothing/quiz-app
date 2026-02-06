@@ -1,4 +1,5 @@
 import os
+import random
 import sqlite3
 import json
 from pathlib import Path
@@ -260,7 +261,9 @@ def query_all_topics_with_counts(db_path: str = None):
 def get_main_topics_from_sqlite(db_path: str = None):
     """
     Return main topics from SQLite for the /topics API.
-    Each topic has topic_name and aggregated unique sub_concepts from all chunks.
+    Queries topic_concept_edges to get all normalized topics and their
+    normalized concepts. Only includes topics that have at least one
+    teaching_material (or NULL doc_type) chunk mapped from their original_topics.
     Returns list of dicts: [{"topic_name": str, "sub_concepts": list[str]}, ...]
     """
     if db_path is None:
@@ -272,30 +275,165 @@ def get_main_topics_from_sqlite(db_path: str = None):
     conn = sqlite3.connect(db_path)
     cursor = conn.cursor()
 
+    # Check if topic_concept_edges exists (built by build_graph.py)
     cursor.execute("""
-        SELECT topic_name, sub_concepts
-        FROM document_chunks
-        ORDER BY topic_name
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='topic_concept_edges'
+    """)
+    if not cursor.fetchone():
+        conn.close()
+        return []
+
+    cursor.execute("""
+        SELECT normalized_topic, normalized_concept
+        FROM topic_concept_edges
+        ORDER BY normalized_topic, normalized_concept
     """)
     rows = cursor.fetchall()
     conn.close()
 
-    # Aggregate by topic_name: collect unique sub_concepts
+    # Aggregate by normalized_topic: collect unique normalized_concept
     by_topic: dict[str, set[str]] = {}
-    for topic_name, sub_concepts_json in rows:
+    for topic_name, concept in rows:
         if topic_name not in by_topic:
             by_topic[topic_name] = set()
-        try:
-            concepts = json.loads(sub_concepts_json)
-            if isinstance(concepts, list):
-                by_topic[topic_name].update(c for c in concepts if isinstance(c, str))
-        except (json.JSONDecodeError, TypeError):
-            continue
+        by_topic[topic_name].add(concept)
 
+    # Exclude normalized topics that have no doc chunks mapped from original_topics
+    verified = []
+    for name, concepts in sorted(by_topic.items()):
+        diag = verify_normalized_topic_has_chunks(name, db_path)
+        if diag["total_teaching_chunks"] > 0:
+            verified.append({"topic_name": name, "sub_concepts": sorted(concepts)})
+    return verified
+
+
+def get_original_topics_for_normalized_topic(
+    normalized_topic: str,
+    db_path: str | None = None,
+) -> list[str]:
+    """
+    Get all original_topic values that map to the given normalized_topic
+    from the normalized_topics table. Used for metadata filtering in vector search.
+    """
+    if db_path is None:
+        db_path = settings.SQLITE_DB_PATH
+
+    if not Path(db_path).exists():
+        return [normalized_topic]
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='normalized_topics'
+    """)
+    if not cursor.fetchone():
+        conn.close()
+        return [normalized_topic]
+
+    cursor.execute(
+        "SELECT original_topic FROM normalized_topics WHERE normalized_topic = ?",
+        (normalized_topic,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    topics = [r[0] for r in rows if r[0]]
+    return topics if topics else [normalized_topic]
+
+
+def list_normalized_and_original_topics(db_path: str = None):
+    """
+    List all original topics and their normalized topic from the normalized_topics table
+    (built by build_graph.py). Returns list of dicts:
+    [{"original_topic": str, "normalized_topic": str}, ...]
+    Returns [] if the table does not exist.
+    """
+    if db_path is None:
+        db_path = settings.SQLITE_DB_PATH
+
+    if not os.path.exists(db_path):
+        return []
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='normalized_topics'
+    """)
+    if not cursor.fetchone():
+        conn.close()
+        return []
+
+    cursor.execute("""
+        SELECT original_topic, normalized_topic
+        FROM normalized_topics
+        ORDER BY normalized_topic, original_topic
+    """)
+    rows = cursor.fetchall()
+    conn.close()
     return [
-        {"topic_name": name, "sub_concepts": sorted(concepts)}
-        for name, concepts in sorted(by_topic.items())
+        {"original_topic": original, "normalized_topic": normalized}
+        for original, normalized in rows
     ]
+
+
+def verify_normalized_topic_has_chunks(normalized_topic: str, db_path: str | None = None) -> dict:
+    """
+    Verify whether a normalized_topic maps to any teaching_material document chunks.
+    Use this to debug "no chunks" when generating quizzes.
+
+    Returns dict with:
+      - original_topics: list of topic strings used for lookup (from normalized_topics or [normalized_topic])
+      - chunk_counts: list of (topic, count) for teaching_material (or NULL doc_type) chunks per topic
+      - total_teaching_chunks: sum of counts
+      - sample_topics_in_db: if total is 0, up to 10 distinct topic_name values from document_chunks
+        (teaching_material/NULL only) so you can see what topic strings actually exist in the DB.
+    """
+    if db_path is None:
+        db_path = settings.SQLITE_DB_PATH
+    out = {
+        "original_topics": [],
+        "chunk_counts": [],
+        "total_teaching_chunks": 0,
+        "sample_topics_in_db": [],
+    }
+    if not Path(db_path).exists():
+        return out
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    original_topics = get_original_topics_for_normalized_topic(normalized_topic, db_path)
+    out["original_topics"] = original_topics
+
+    for topic in original_topics:
+        cursor.execute(
+            """
+            SELECT COUNT(*) FROM document_chunks
+            WHERE topic_name = ? AND (doc_type = ? OR doc_type IS NULL)
+            """,
+            (topic, "teaching_material"),
+        )
+        count = cursor.fetchone()[0]
+        out["chunk_counts"].append((topic, count))
+    out["total_teaching_chunks"] = sum(c for _, c in out["chunk_counts"])
+
+    if out["total_teaching_chunks"] == 0:
+        cursor.execute(
+            """
+            SELECT DISTINCT topic_name FROM document_chunks
+            WHERE doc_type = 'teaching_material' OR doc_type IS NULL
+            ORDER BY topic_name
+            LIMIT 10
+            """
+        )
+        out["sample_topics_in_db"] = [r[0] for r in cursor.fetchall()]
+
+    conn.close()
+    return out
+
 
 def query_chunks_by_topic(db_path: str, topic_name: str):
     """Query all chunks for a specific topic."""
@@ -444,6 +582,91 @@ def query_teaching_material_chunks_by_topics(topics: list, limit: int = None, db
     Returns list of tuples: (id, topic_name, sub_concepts, chunk_text, source, doc_type, created_at)
     """
     return query_chunks_by_doc_type_and_topics('teaching_material', topics, limit, db_path, allow_null=True)
+
+def query_random_concepts_for_normalized_topic(
+    normalized_topic: str,
+    k: int,
+    exclude: list[str] | None = None,
+    db_path: str | None = None,
+) -> list[str]:
+    """
+    Randomly select k normalized_concept values for a given normalized_topic
+    from topic_concept_edges. Used for quiz concept sampling.
+
+    Args:
+        normalized_topic: The normalized topic name
+        k: Number of concepts to randomly select
+        exclude: Optional list of concepts to exclude (e.g. previously tried/failed)
+        db_path: Optional database path
+
+    Returns:
+        List of up to k normalized concept strings. May return fewer if
+        fewer concepts exist for the topic.
+    """
+    if db_path is None:
+        db_path = settings.SQLITE_DB_PATH
+
+    if not Path(db_path).exists():
+        return []
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='topic_concept_edges'
+    """)
+    if not cursor.fetchone():
+        conn.close()
+        return []
+
+    cursor.execute(
+        "SELECT normalized_concept FROM topic_concept_edges WHERE normalized_topic = ?",
+        (normalized_topic,),
+    )
+    rows = cursor.fetchall()
+    conn.close()
+
+    concepts = [r[0] for r in rows if r[0]]
+    if exclude:
+        concepts = [c for c in concepts if c not in exclude]
+    if not concepts:
+        return []
+    k = min(k, len(concepts))
+    return random.sample(concepts, k)
+
+
+def get_normalized_topic_for_teacher_topic(topic: str, db_path: str | None = None) -> str:
+    """
+    Resolve teacher-selected topic to normalized_topic.
+    If topic exists in normalized_topics as original_topic, return its normalized_topic.
+    Otherwise return topic as-is (assume it is already normalized).
+    """
+    if db_path is None:
+        db_path = settings.SQLITE_DB_PATH
+
+    if not Path(db_path).exists():
+        return topic
+
+    conn = sqlite3.connect(db_path)
+    cursor = conn.cursor()
+    cursor.execute("""
+        SELECT name FROM sqlite_master
+        WHERE type='table' AND name='normalized_topics'
+    """)
+    if not cursor.fetchone():
+        conn.close()
+        return topic
+
+    cursor.execute(
+        "SELECT normalized_topic FROM normalized_topics WHERE original_topic = ?",
+        (topic.strip(),),
+    )
+    row = cursor.fetchone()
+    conn.close()
+
+    return row[0] if row else topic.strip()
+
 
 def get_concepts_for_topic(topic: str, db_path: str = None):
     """

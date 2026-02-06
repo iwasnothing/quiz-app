@@ -32,6 +32,9 @@ class Settings:
     LLM_API_KEY: str = os.getenv("LLM_API_KEY", "EMPTY")
     LLM_TEMPERATURE: float = float(os.getenv("LLM_TEMPERATURE", "0.7"))
     LLM_MAX_RETRIES: int = int(os.getenv("LLM_MAX_RETRIES", "5"))
+
+    # Quiz concept validation: min similarity for vector search (0–1, higher = stricter)
+    QUIZ_CONCEPT_MIN_SIMILARITY: float = float(os.getenv("QUIZ_CONCEPT_MIN_SIMILARITY", "0.2"))
     
     # Database configuration (for PostgreSQL/Neo4j if needed)
     # If PG_CONNECTION_STRING is not set, construct it from individual components

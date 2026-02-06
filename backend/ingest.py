@@ -1,20 +1,23 @@
 #!/usr/bin/env python
 
+# Avoid OpenMP conflict when FAISS + NumPy/sklearn load multiple libomp copies (macOS)
 import os
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 import subprocess
 import shutil
 import re
 import math
 from collections import Counter
 from pathlib import Path
-
+from database import query_all_topics
 from langchain_community.document_loaders import (
     DirectoryLoader,
     TextLoader,
 )
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_core.output_parsers import JsonOutputParser
-
+import random
 # Optional import for RetrievalQA (legacy, may not be available in newer langchain versions)
 # RetrievalQA is deprecated and moved to langchain-classic, but the import path remains the same
 RETRIEVAL_QA_AVAILABLE = False
@@ -874,6 +877,51 @@ def create_qa_chain(retriever):
     return qa
 
 
+def run_retriever_test(vectorstore, test_query: str = "What are the main topics covered in these slides and docs?"):
+    """
+    Test the retriever with a sample query.
+    
+    Args:
+        vectorstore: The FAISS vectorstore to test
+        test_query: The query to test with
+        
+    Returns:
+        The retriever instance for further use
+    """
+    print("\n=== Creating retriever ===")
+    retriever = create_retriever(vectorstore)
+
+    print("\n=== Retriever test ===")
+    retrieved_docs = retriever.invoke(test_query)
+    for i, d in enumerate(retrieved_docs, 1):
+        print(f"\n--- Result {i} ---")
+        print("Source:", d.metadata.get("source"))
+        print("Topic:", d.metadata.get("topic_name", "N/A"))
+        print("Sub-concepts:", d.metadata.get("sub_concepts", []))
+        print(d.page_content[:500], "...\n")
+    
+    return retriever
+
+
+def run_qa_chain_test(retriever, test_query: str = "What are the main topics covered in these slides and docs?"):
+    """
+    Test the RetrievalQA chain with a sample query.
+    
+    Args:
+        retriever: The retriever to use for QA
+        test_query: The query to test with
+    """
+    print("\n=== RetrievalQA test (optional) ===")
+    try:
+        qa = create_qa_chain(retriever)
+        result = qa.invoke({"query": test_query})
+        print("Answer:", result.get("result", result))
+        if "source_documents" in result:
+            print(f"\nSource documents: {len(result['source_documents'])} documents used")
+    except Exception as e:
+        print("RetrievalQA chain failed (LLM not configured?):", e)
+
+
 def ingest_documents(DATA_DIR: str, doc_type: str = None):
     """
     Ingest documents from a directory.
@@ -924,35 +972,9 @@ def ingest_documents(DATA_DIR: str, doc_type: str = None):
         # 7. FAISS vectorstore
         print("\n=== Step 7: Building/loading FAISS vectorstore ===")
         vectorstore = get_faiss_vectorstore(split_docs)
-
-        # 9. Retriever
-        print("\n=== Step 9: Creating retriever ===")
-        retriever = create_retriever(vectorstore)
-
-        # 10. Example: directly use retriever
-        print("\n=== Retriever test ===")
-        test_query = "What are the main topics covered in these slides and docs?"
-        retrieved_docs = retriever.get_relevant_documents(test_query)
-        for i, d in enumerate(retrieved_docs, 1):
-            print(f"\n--- Result {i} ---")
-            print("Source:", d.metadata.get("source"))
-            print("Topic:", d.metadata.get("topic_name", "N/A"))
-            print("Sub-concepts:", d.metadata.get("sub_concepts", []))
-            print(d.page_content[:500], "...\n")
-
-        # 11. Optional: RetrievalQA chain
-        print("\n=== RetrievalQA test (optional) ===")
-        try:
-            qa = create_qa_chain(retriever)
-            result = qa.invoke({"query": test_query})
-            print("Answer:", result.get("result", result))
-            if "source_documents" in result:
-                print(f"\nSource documents: {len(result['source_documents'])} documents used")
-        except Exception as e:
-            print("RetrievalQA chain failed (LLM not configured?):", e)
         
-        # 12. Ensure all data is saved
-        print("\n=== Step 12: Saving all data ===")
+        # 8. Ensure all data is saved
+        print("\n=== Step 8: Saving all data ===")
         save_faiss_index(vectorstore)
         verify_sqlite_saved()
         print("\n✓ Ingestion completed successfully!")
@@ -960,7 +982,35 @@ def ingest_documents(DATA_DIR: str, doc_type: str = None):
     except (FileNotFoundError, NotADirectoryError, ValueError) as e:
         print(f"\nFailed to load documents: {e}")
         return
-
+def test_retrieval_with_random_topic():
+    """
+    Test the retriever and QA chain using a random topic from SQLite.
+    """
+    # Get all topics from SQLite
+    topics = query_all_topics()
+    if not topics:
+        print("No topics found in SQLite database.")
+        return
+    
+    # Select a random topic
+    random_topic = random.choice(topics)
+    print(f"\n=== Selected random topic: {random_topic} ===")
+    
+    # Build a query from the topic
+    test_query = f"What are the key concepts and information about {random_topic}?"
+    print(f"Test query: {test_query}")
+    
+    # Load the vectorstore
+    vectorstore = get_faiss_vectorstore()
+    if vectorstore is None:
+        print("Failed to load FAISS vectorstore.")
+        return
+    
+    # Run retriever test
+    retriever = run_retriever_test(vectorstore, test_query)
+    
+    # Run QA chain test
+    run_qa_chain_test(retriever, test_query)
 
 if __name__ == "__main__":
     DATA_DIR = "/Users/kahingleung/Downloads/edu-doc/science/Teaching-Materials"
@@ -969,3 +1019,4 @@ if __name__ == "__main__":
     # Example: ingest_documents(DATA_DIR, doc_type="teaching_material")
     ingest_documents(DATA_DIR, doc_type="teaching_material")
     ingest_documents(QUIZ_DIR, doc_type="question_bank")
+    test_retrieval_with_random_topic()

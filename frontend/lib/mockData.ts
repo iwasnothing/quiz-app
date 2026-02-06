@@ -9,6 +9,8 @@ export interface QuizQuestion {
   question_text: string;
   options: string[] | null;
   correct_answer: string;
+  marking_rubric?: string;
+  source_context?: string;
   topic?: string;
   concept?: string;
 }

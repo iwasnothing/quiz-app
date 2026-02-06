@@ -1,12 +1,18 @@
+# Avoid OpenMP conflict when FAISS + NumPy/sklearn load multiple libomp copies (macOS)
+import os
+os.environ.setdefault("KMP_DUPLICATE_LIB_OK", "TRUE")
+
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from typing import List
 import json
 
+import random
 import ingest
 import generator
-from database import get_main_topics_from_sqlite, query_all_topics
+from database import get_main_topics_from_sqlite, query_all_topics, verify_normalized_topic_has_chunks
+from ingest import run_retriever_test, run_qa_chain_test, get_faiss_vectorstore
 from models import (
     QuizSchema, 
     TopicResponse, 
@@ -69,6 +75,19 @@ def get_topic_names():
     except Exception as e:
         print(f"Topic Names Error: {e}")
         return []
+
+@app.get("/verify-topic")
+def verify_topic(topic: str):
+    """
+    Verify whether a (normalized) topic maps to any teaching_material chunks.
+    Use to debug 'no chunks' when generating quizzes.
+    Returns original_topics, chunk_counts per topic, total_teaching_chunks,
+    and if total is 0, sample topic_name values that exist in the DB.
+    """
+    try:
+        return verify_normalized_topic_has_chunks(topic.strip())
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 # --- 3. Quiz Generation (Frontend API) - Streaming ---
 @app.post("/generate-quiz")
@@ -184,6 +203,6 @@ def reroll_question(request: RerollQuestionRequest):
         print(f"Reroll Question Error: {e}")
         raise HTTPException(status_code=500, detail=str(e))
 
-if __name__ == "__main__":
+if __name__ == "__main__":        # Run the FastAPI server
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8080)

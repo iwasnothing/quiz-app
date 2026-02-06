@@ -1,0 +1,945 @@
+<html>
+    <head>
+        <meta charset="utf-8">
+        
+            <script src="lib/bindings/utils.js"></script>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/dist/vis-network.min.css" integrity="sha512-WgxfT5LWjfszlPHXRmBWHkV2eceiWTOBvrKCNbdgDYTHrT2AeLCGbF4sZlZw3UMN3WtL0tGUoIAKsu8mllg/XA==" crossorigin="anonymous" referrerpolicy="no-referrer" />
+            <script src="https://cdnjs.cloudflare.com/ajax/libs/vis-network/9.1.2/dist/vis-network.min.js" integrity="sha512-LnvoEWDFrqGHlHmDD2101OrLcbsfkrzoSpvtSQtxK3RMnRV0eOkhhBN2dXHKRrUU8p2DGRTk35n4O8nWSVe1mQ==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+            
+                <link href="lib/tom-select/tom-select.css" rel="stylesheet">
+                <script src="lib/tom-select/tom-select.complete.min.js"></script>
+            
+        
+<center>
+<h1></h1>
+</center>
+
+<!-- <link rel="stylesheet" href="../node_modules/vis/dist/vis.min.css" type="text/css" />
+<script type="text/javascript" src="../node_modules/vis/dist/vis.js"> </script>-->
+        <link
+          href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/css/bootstrap.min.css"
+          rel="stylesheet"
+          integrity="sha384-eOJMYsd53ii+scO/bJGFsiCZc+5NDVN2yr8+0RDqr0Ql0h+rP48ckxlpbzKgwra6"
+          crossorigin="anonymous"
+        />
+        <script
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.0-beta3/dist/js/bootstrap.bundle.min.js"
+          integrity="sha384-JEW9xMcG8R+pH31jmWH6WWP0WintQrMb4s7ZOdauHnUtxwoG2vI5DkLtS3qm9Ekf"
+          crossorigin="anonymous"
+        ></script>
+
+
+        <center>
+          <h1></h1>
+        </center>
+        <style type="text/css">
+
+             #mynetwork {
+                 width: 100%;
+                 height: 900px;
+                 background-color: #222222;
+                 border: 1px solid lightgray;
+                 position: relative;
+                 float: left;
+             }
+
+             
+             #loadingBar {
+                 position:absolute;
+                 top:0px;
+                 left:0px;
+                 width: 100%;
+                 height: 900px;
+                 background-color:rgba(200,200,200,0.8);
+                 -webkit-transition: all 0.5s ease;
+                 -moz-transition: all 0.5s ease;
+                 -ms-transition: all 0.5s ease;
+                 -o-transition: all 0.5s ease;
+                 transition: all 0.5s ease;
+                 opacity:1;
+             }
+
+             #bar {
+                 position:absolute;
+                 top:0px;
+                 left:0px;
+                 width:20px;
+                 height:20px;
+                 margin:auto auto auto auto;
+                 border-radius:11px;
+                 border:2px solid rgba(30,30,30,0.05);
+                 background: rgb(0, 173, 246); /* Old browsers */
+                 box-shadow: 2px 0px 4px rgba(0,0,0,0.4);
+             }
+
+             #border {
+                 position:absolute;
+                 top:10px;
+                 left:10px;
+                 width:500px;
+                 height:23px;
+                 margin:auto auto auto auto;
+                 box-shadow: 0px 0px 4px rgba(0,0,0,0.2);
+                 border-radius:10px;
+             }
+
+             #text {
+                 position:absolute;
+                 top:8px;
+                 left:530px;
+                 width:30px;
+                 height:50px;
+                 margin:auto auto auto auto;
+                 font-size:22px;
+                 color: #000000;
+             }
+
+             div.outerBorder {
+                 position:relative;
+                 top:400px;
+                 width:600px;
+                 height:44px;
+                 margin:auto auto auto auto;
+                 border:8px solid rgba(0,0,0,0.1);
+                 background: rgb(252,252,252); /* Old browsers */
+                 background: -moz-linear-gradient(top,  rgba(252,252,252,1) 0%, rgba(237,237,237,1) 100%); /* FF3.6+ */
+                 background: -webkit-gradient(linear, left top, left bottom, color-stop(0%,rgba(252,252,252,1)), color-stop(100%,rgba(237,237,237,1))); /* Chrome,Safari4+ */
+                 background: -webkit-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Chrome10+,Safari5.1+ */
+                 background: -o-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* Opera 11.10+ */
+                 background: -ms-linear-gradient(top,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* IE10+ */
+                 background: linear-gradient(to bottom,  rgba(252,252,252,1) 0%,rgba(237,237,237,1) 100%); /* W3C */
+                 filter: progid:DXImageTransform.Microsoft.gradient( startColorstr='#fcfcfc', endColorstr='#ededed',GradientType=0 ); /* IE6-9 */
+                 border-radius:72px;
+                 box-shadow: 0px 0px 10px rgba(0,0,0,0.2);
+             }
+             
+
+             
+
+             
+        </style>
+    </head>
+
+
+    <body>
+        <div class="card" style="width: 100%">
+            
+                <div id="select-menu" class="card-header">
+                    <div class="row no-gutters">
+                        <div class="col-10 pb-2">
+                            <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="selectNode([value]);"
+                            id="select-node"
+                            placeholder="Select node..."
+                            >
+                                <option selected>Select a Node by ID</option>
+                                
+                                    <option value="Accidents and casualties">Accidents and casualties</option>
+                                
+                                    <option value="Acid Rain">Acid Rain</option>
+                                
+                                    <option value="Acids and Indicators">Acids and Indicators</option>
+                                
+                                    <option value="Acids and alkalis">Acids and alkalis</option>
+                                
+                                    <option value="Action and Reaction Forces">Action and Reaction Forces</option>
+                                
+                                    <option value="Action and Reaction in Sports and Spacecraft">Action and Reaction in Sports and Spacecraft</option>
+                                
+                                    <option value="Air Composition Differences">Air Composition Differences</option>
+                                
+                                    <option value="Air Composition and Fire Safety">Air Composition and Fire Safety</option>
+                                
+                                    <option value="Air Composition and Testing">Air Composition and Testing</option>
+                                
+                                    <option value="Air Pollution and Health Effects">Air Pollution and Health Effects</option>
+                                
+                                    <option value="Apollo 11 Mission">Apollo 11 Mission</option>
+                                
+                                    <option value="Aquarium Ecology">Aquarium Ecology</option>
+                                
+                                    <option value="Artificial Respiration">Artificial Respiration</option>
+                                
+                                    <option value="Audible Frequency Range">Audible Frequency Range</option>
+                                
+                                    <option value="Balance of Carbon Dioxide and Oxygen in Nature">Balance of Carbon Dioxide and Oxygen in Nature</option>
+                                
+                                    <option value="Banning Smoking in Indoor Public Places">Banning Smoking in Indoor Public Places</option>
+                                
+                                    <option value="Body Resistance Measurement">Body Resistance Measurement</option>
+                                
+                                    <option value="Brain's Function and Main Parts">Brain's Function and Main Parts</option>
+                                
+                                    <option value="Breathing Model">Breathing Model</option>
+                                
+                                    <option value="Breathing Underwater">Breathing Underwater</option>
+                                
+                                    <option value="Burning">Burning</option>
+                                
+                                    <option value="Burning of Candle in Oxygen">Burning of Candle in Oxygen</option>
+                                
+                                    <option value="Cancer-Causing Compounds in Cigarette Smoke">Cancer-Causing Compounds in Cigarette Smoke</option>
+                                
+                                    <option value="Carbon Dioxide">Carbon Dioxide</option>
+                                
+                                    <option value="Chemistry Test">Chemistry Test</option>
+                                
+                                    <option value="Chemistry Test Answers">Chemistry Test Answers</option>
+                                
+                                    <option value="Chemistry and Biology">Chemistry and Biology</option>
+                                
+                                    <option value="Chemistry and Environmental Science">Chemistry and Environmental Science</option>
+                                
+                                    <option value="Choosing Suitable Fuses">Choosing Suitable Fuses</option>
+                                
+                                    <option value="Christmas Light Bulb Circuit">Christmas Light Bulb Circuit</option>
+                                
+                                    <option value="Cigarette Smoke Inhalation">Cigarette Smoke Inhalation</option>
+                                
+                                    <option value="Circuit Breaker Ratings">Circuit Breaker Ratings</option>
+                                
+                                    <option value="Circuit Design">Circuit Design</option>
+                                
+                                    <option value="Circuit Diagram">Circuit Diagram</option>
+                                
+                                    <option value="Circuit Diagram Drawing">Circuit Diagram Drawing</option>
+                                
+                                    <option value="Circuit Identification">Circuit Identification</option>
+                                
+                                    <option value="Close-Up Observation">Close-Up Observation</option>
+                                
+                                    <option value="Colour blindness">Colour blindness</option>
+                                
+                                    <option value="Colour blindness Test">Colour blindness Test</option>
+                                
+                                    <option value="Colour-blindness">Colour-blindness</option>
+                                
+                                    <option value="Common Acids and alkalis">Common Acids and alkalis</option>
+                                
+                                    <option value="Comparison of Fuses with Different Ratings">Comparison of Fuses with Different Ratings</option>
+                                
+                                    <option value="Comparison of Metal Wire Resistances">Comparison of Metal Wire Resistances</option>
+                                
+                                    <option value="Concentration of Acids and Alkalis">Concentration of Acids and Alkalis</option>
+                                
+                                    <option value="Corridor Lighting System">Corridor Lighting System</option>
+                                
+                                    <option value="Creating the greenhouse effect">Creating the greenhouse effect</option>
+                                
+                                    <option value="Current Measurement Methods">Current Measurement Methods</option>
+                                
+                                    <option value="Cyclic Shifts">Cyclic Shifts</option>
+                                
+                                    <option value="Daily life inside a spacecraft">Daily life inside a spacecraft</option>
+                                
+                                    <option value="Designing Devices">Designing Devices</option>
+                                
+                                    <option value="Double-Insulation">Double-Insulation</option>
+                                
+                                    <option value="Dry Cell Connection Effects on Voltage">Dry Cell Connection Effects on Voltage</option>
+                                
+                                    <option value="Ear Damage from Loud Noise Exposure">Ear Damage from Loud Noise Exposure</option>
+                                
+                                    <option value="Effect of Resistance on Electric Current">Effect of Resistance on Electric Current</option>
+                                
+                                    <option value="Effects of Acid Rain">Effects of Acid Rain</option>
+                                
+                                    <option value="Effects of Acids on Metals and Building Materials">Effects of Acids on Metals and Building Materials</option>
+                                
+                                    <option value="Effects of Alcohol and Drugs on Us">Effects of Alcohol and Drugs on Us</option>
+                                
+                                    <option value="Effects of Current">Effects of Current</option>
+                                
+                                    <option value="Effects of Drugs on Our Senses">Effects of Drugs on Our Senses</option>
+                                
+                                    <option value="Effects of Force on Motion">Effects of Force on Motion</option>
+                                
+                                    <option value="Effects of Noise on Health">Effects of Noise on Health</option>
+                                
+                                    <option value="Effects of Smoking on Health">Effects of Smoking on Health</option>
+                                
+                                    <option value="Effects of Smoking on Lungs">Effects of Smoking on Lungs</option>
+                                
+                                    <option value="Electric Cars">Electric Cars</option>
+                                
+                                    <option value="Electric Circuit Analogy with Water Pipe System">Electric Circuit Analogy with Water Pipe System</option>
+                                
+                                    <option value="Electric Current">Electric Current</option>
+                                
+                                    <option value="Electric Current and Safety Devices">Electric Current and Safety Devices</option>
+                                
+                                    <option value="Electric Eel">Electric Eel</option>
+                                
+                                    <option value="Electric Heater in Country Park">Electric Heater in Country Park</option>
+                                
+                                    <option value="Electric Iron Power">Electric Iron Power</option>
+                                
+                                    <option value="Electric Wire Thickness">Electric Wire Thickness</option>
+                                
+                                    <option value="Electrical Appliances Power Consumption">Electrical Appliances Power Consumption</option>
+                                
+                                    <option value="Electrical Circuits">Electrical Circuits</option>
+                                
+                                    <option value="Electrical Circuits and Appliances">Electrical Circuits and Appliances</option>
+                                
+                                    <option value="Electrical Circuits and Voltage">Electrical Circuits and Voltage</option>
+                                
+                                    <option value="Electrical Conductivity and Circuits">Electrical Conductivity and Circuits</option>
+                                
+                                    <option value="Electrical Resistance">Electrical Resistance</option>
+                                
+                                    <option value="Electrical Safety">Electrical Safety</option>
+                                
+                                    <option value="Electrical Wiring and Safety">Electrical Wiring and Safety</option>
+                                
+                                    <option value="Electrical circuits">Electrical circuits</option>
+                                
+                                    <option value="Electricity">Electricity</option>
+                                
+                                    <option value="Electricity Cost Calculation">Electricity Cost Calculation</option>
+                                
+                                    <option value="Electricity Flow">Electricity Flow</option>
+                                
+                                    <option value="Electricity and Circuit Completion">Electricity and Circuit Completion</option>
+                                
+                                    <option value="Electricity and Circuit Protection">Electricity and Circuit Protection</option>
+                                
+                                    <option value="Electrochemical Cells">Electrochemical Cells</option>
+                                
+                                    <option value="Electrochemistry">Electrochemistry</option>
+                                
+                                    <option value="Electromagnets in Cranes">Electromagnets in Cranes</option>
+                                
+                                    <option value="Electronic Cigarettes">Electronic Cigarettes</option>
+                                
+                                    <option value="Energy Content of Food">Energy Content of Food</option>
+                                
+                                    <option value="Energy Obtention and Utilization">Energy Obtention and Utilization</option>
+                                
+                                    <option value="Exhaled Air Experiment">Exhaled Air Experiment</option>
+                                
+                                    <option value="Experiment Procedures and Analysis">Experiment Procedures and Analysis</option>
+                                
+                                    <option value="Eye Anatomy and Safety">Eye Anatomy and Safety</option>
+                                
+                                    <option value="Eye Anatomy and Vision">Eye Anatomy and Vision</option>
+                                
+                                    <option value="Eye Conditions and Care">Eye Conditions and Care</option>
+                                
+                                    <option value="Eye care">Eye care</option>
+                                
+                                    <option value="Fire Extinguishers">Fire Extinguishers</option>
+                                
+                                    <option value="Fire Extinguishing Mechanisms">Fire Extinguishing Mechanisms</option>
+                                
+                                    <option value="Fire Safety">Fire Safety</option>
+                                
+                                    <option value="Fire and Combustion">Fire and Combustion</option>
+                                
+                                    <option value="Fireproof Materials in Furniture">Fireproof Materials in Furniture</option>
+                                
+                                    <option value="Fish Care">Fish Care</option>
+                                
+                                    <option value="Flipped Classroom">Flipped Classroom</option>
+                                
+                                    <option value="Food Chains">Food Chains</option>
+                                
+                                    <option value="Food Preservation Using Acids">Food Preservation Using Acids</option>
+                                
+                                    <option value="Force and Motion">Force and Motion</option>
+                                
+                                    <option value="Force of Gravity">Force of Gravity</option>
+                                
+                                    <option value="Forces Between Objects">Forces Between Objects</option>
+                                
+                                    <option value="Friction">Friction</option>
+                                
+                                    <option value="Gas Exchange in Air Sacs">Gas Exchange in Air Sacs</option>
+                                
+                                    <option value="Gas Exchange in Lungs">Gas Exchange in Lungs</option>
+                                
+                                    <option value="Gas Tests and Air Composition">Gas Tests and Air Composition</option>
+                                
+                                    <option value="Gases and Their Uses">Gases and Their Uses</option>
+                                
+                                    <option value="Graphic Warnings on Cigarette Packets">Graphic Warnings on Cigarette Packets</option>
+                                
+                                    <option value="Greenhouse Effect">Greenhouse Effect</option>
+                                
+                                    <option value="Hands-on activities">Hands-on activities</option>
+                                
+                                    <option value="Harmful Effects of Acid Rain">Harmful Effects of Acid Rain</option>
+                                
+                                    <option value="Harmful Effects of Global Warming">Harmful Effects of Global Warming</option>
+                                
+                                    <option value="Hearing Protection">Hearing Protection</option>
+                                
+                                    <option value="Heat Transfer">Heat Transfer</option>
+                                
+                                    <option value="Heat transfer by radiation and conduction">Heat transfer by radiation and conduction</option>
+                                
+                                    <option value="Heating Effect of Current">Heating Effect of Current</option>
+                                
+                                    <option value="Heating and Magnetic Effects of Current">Heating and Magnetic Effects of Current</option>
+                                
+                                    <option value="Hiccups">Hiccups</option>
+                                
+                                    <option value="History of Space Exploration">History of Space Exploration</option>
+                                
+                                    <option value="Holding Breath Risks">Holding Breath Risks</option>
+                                
+                                    <option value="How is an image formed in the eye?">How is an image formed in the eye?</option>
+                                
+                                    <option value="Human Ear Structure and Function">Human Ear Structure and Function</option>
+                                
+                                    <option value="Human Eye Structure and Function">Human Eye Structure and Function</option>
+                                
+                                    <option value="Human Hearing">Human Hearing</option>
+                                
+                                    <option value="Hydro-Rocket Scientific Investigation">Hydro-Rocket Scientific Investigation</option>
+                                
+                                    <option value="Illusions">Illusions</option>
+                                
+                                    <option value="Increasing Friction">Increasing Friction</option>
+                                
+                                    <option value="International cooperation and challenges in space exploration">International cooperation and challenges in space exploration</option>
+                                
+                                    <option value="Internet">Internet</option>
+                                
+                                    <option value="Lens Experiment">Lens Experiment</option>
+                                
+                                    <option value="Lenses and Light">Lenses and Light</option>
+                                
+                                    <option value="Light Bulbs and Their Characteristics">Light Bulbs and Their Characteristics</option>
+                                
+                                    <option value="Lighting Bulbs and Their Characteristics">Lighting Bulbs and Their Characteristics</option>
+                                
+                                    <option value="Lightning Safety in Vehicles">Lightning Safety in Vehicles</option>
+                                
+                                    <option value="Long term effects of smoking on health">Long term effects of smoking on health</option>
+                                
+                                    <option value="Lung Structure">Lung Structure</option>
+                                
+                                    <option value="Maglev Train">Maglev Train</option>
+                                
+                                    <option value="Magnetic Effect of Current">Magnetic Effect of Current</option>
+                                
+                                    <option value="Magnetic Levitation">Magnetic Levitation</option>
+                                
+                                    <option value="Morse Code Circuit Game">Morse Code Circuit Game</option>
+                                
+                                    <option value="Morse Code Hands-on Activity">Morse Code Hands-on Activity</option>
+                                
+                                    <option value="Morse code">Morse code</option>
+                                
+                                    <option value="Neutralization Reaction">Neutralization Reaction</option>
+                                
+                                    <option value="Noise Pollution">Noise Pollution</option>
+                                
+                                    <option value="Operating Voltage of Electrical Appliances">Operating Voltage of Electrical Appliances</option>
+                                
+                                    <option value="Oxidation Numbers in Reactions">Oxidation Numbers in Reactions</option>
+                                
+                                    <option value="Oxygen Content in Air">Oxygen Content in Air</option>
+                                
+                                    <option value="Paper Airplane Launch">Paper Airplane Launch</option>
+                                
+                                    <option value="Paper Conservation">Paper Conservation</option>
+                                
+                                    <option value="Parachute Experiment">Parachute Experiment</option>
+                                
+                                    <option value="Parallel Circuit">Parallel Circuit</option>
+                                
+                                    <option value="Passive Smoking">Passive Smoking</option>
+                                
+                                    <option value="Photosynthesis">Photosynthesis</option>
+                                
+                                    <option value="Photosynthesis and Aquatic Ecosystems">Photosynthesis and Aquatic Ecosystems</option>
+                                
+                                    <option value="Photosynthesis and Food Chains">Photosynthesis and Food Chains</option>
+                                
+                                    <option value="Photosynthesis and Respiration">Photosynthesis and Respiration</option>
+                                
+                                    <option value="Photosynthesis and Starch Testing">Photosynthesis and Starch Testing</option>
+                                
+                                    <option value="Plant Biology and Respiration">Plant Biology and Respiration</option>
+                                
+                                    <option value="Potential Dangers of Using Electricity">Potential Dangers of Using Electricity</option>
+                                
+                                    <option value="Preparation assessment">Preparation assessment</option>
+                                
+                                    <option value="Preventive measures against acid rain">Preventive measures against acid rain</option>
+                                
+                                    <option value="Protecting Hearing from Noise">Protecting Hearing from Noise</option>
+                                
+                                    <option value="Protecting our ears">Protecting our ears</option>
+                                
+                                    <option value="Public facilities for the visually-impaired">Public facilities for the visually-impaired</option>
+                                
+                                    <option value="Pupil Size Change in Dim Light">Pupil Size Change in Dim Light</option>
+                                
+                                    <option value="Rabbit Disappearance Experiment">Rabbit Disappearance Experiment</option>
+                                
+                                    <option value="Reaction Time">Reaction Time</option>
+                                
+                                    <option value="Redox Reactions">Redox Reactions</option>
+                                
+                                    <option value="Reducing Friction">Reducing Friction</option>
+                                
+                                    <option value="Resistor Color Coding">Resistor Color Coding</option>
+                                
+                                    <option value="Resistor Resistance">Resistor Resistance</option>
+                                
+                                    <option value="Respiration">Respiration</option>
+                                
+                                    <option value="Respiration and Gaseous Exchange">Respiration and Gaseous Exchange</option>
+                                
+                                    <option value="Respiratory Diseases">Respiratory Diseases</option>
+                                
+                                    <option value="Respiratory Experiment and Gas Exchange">Respiratory Experiment and Gas Exchange</option>
+                                
+                                    <option value="Respiratory System Anatomy">Respiratory System Anatomy</option>
+                                
+                                    <option value="Respiratory System and Experiment Setup">Respiratory System and Experiment Setup</option>
+                                
+                                    <option value="Rocket Design">Rocket Design</option>
+                                
+                                    <option value="Rocket Launch Principles">Rocket Launch Principles</option>
+                                
+                                    <option value="Rocket Propulsion">Rocket Propulsion</option>
+                                
+                                    <option value="Role Play on Smoking Ban">Role Play on Smoking Ban</option>
+                                
+                                    <option value="Rusting and Corrosion of Iron">Rusting and Corrosion of Iron</option>
+                                
+                                    <option value="Safety precautions in handling concentrated strong acids and alkalis">Safety precautions in handling concentrated strong acids and alkalis</option>
+                                
+                                    <option value="Seeing Objects at Different Distances">Seeing Objects at Different Distances</option>
+                                
+                                    <option value="Self and Peer Assessment">Self and Peer Assessment</option>
+                                
+                                    <option value="Sense Organs">Sense Organs</option>
+                                
+                                    <option value="Sense of smell">Sense of smell</option>
+                                
+                                    <option value="Sense organs and senses">Sense organs and senses</option>
+                                
+                                    <option value="Sensing the environment">Sensing the environment</option>
+                                
+                                    <option value="Sensory System">Sensory System</option>
+                                
+                                    <option value="Series Circuit">Series Circuit</option>
+                                
+                                    <option value="Shenzhou 5 Mission">Shenzhou 5 Mission</option>
+                                
+                                    <option value="Shenzhou 7 Spacecraft">Shenzhou 7 Spacecraft</option>
+                                
+                                    <option value="Short Circuit Experiment">Short Circuit Experiment</option>
+                                
+                                    <option value="Sound Production">Sound Production</option>
+                                
+                                    <option value="Sound Production and Frequency">Sound Production and Frequency</option>
+                                
+                                    <option value="Sound Production and Travel">Sound Production and Travel</option>
+                                
+                                    <option value="Sound Travel">Sound Travel</option>
+                                
+                                    <option value="Space Shuttle">Space Shuttle</option>
+                                
+                                    <option value="Space exploration and its benefits">Space exploration and its benefits</option>
+                                
+                                    <option value="Spacecraft Landing Process">Spacecraft Landing Process</option>
+                                
+                                    <option value="Spacesuit Components and Functions">Spacesuit Components and Functions</option>
+                                
+                                    <option value="Spacesuit Functions and Comparisons">Spacesuit Functions and Comparisons</option>
+                                
+                                    <option value="Starch Testing in Plants">Starch Testing in Plants</option>
+                                
+                                    <option value="Stomata and Guard Cells">Stomata and Guard Cells</option>
+                                
+                                    <option value="Superconductors">Superconductors</option>
+                                
+                                    <option value="Taste and Sensory Perception in the Mouth">Taste and Sensory Perception in the Mouth</option>
+                                
+                                    <option value="Temperature Change Measurement">Temperature Change Measurement</option>
+                                
+                                    <option value="Touch">Touch</option>
+                                
+                                    <option value="Travel Abroad">Travel Abroad</option>
+                                
+                                    <option value="Treatment of accidents and emergencies involving acids and alkalis">Treatment of accidents and emergencies involving acids and alkalis</option>
+                                
+                                    <option value="Troubleshooting Circuit Issues">Troubleshooting Circuit Issues</option>
+                                
+                                    <option value="Vision Disorders">Vision Disorders</option>
+                                
+                                    <option value="Voltage">Voltage</option>
+                                
+                                    <option value="Volume Control Using Rheostat">Volume Control Using Rheostat</option>
+                                
+                                    <option value="Water Heating Experiment">Water Heating Experiment</option>
+                                
+                                    <option value="Water Plant Photosynthesis and Gas Bubbles">Water Plant Photosynthesis and Gas Bubbles</option>
+                                
+                                    <option value="Wiring a three-pin plug">Wiring a three-pin plug</option>
+                                
+                                    <option value="Working Principle of Common Electrical Appliances">Working Principle of Common Electrical Appliances</option>
+                                
+                                    <option value="Working outside the spacecraft">Working outside the spacecraft</option>
+                                
+                                    <option value="effect resistance wire">effect resistance wire</option>
+                                
+                                    <option value="exchange gas plants">exchange gas plants</option>
+                                
+                                    <option value="pH Measurement and Analysis">pH Measurement and Analysis</option>
+                                
+                                    <option value="pH value change when dilute sodium hydroxide solution is added to dilute hydrochloric acid">pH value change when dilute sodium hydroxide solution is added to dilute hydrochloric acid</option>
+                                
+                                    <option value="preparation pre class">preparation pre class</option>
+                                
+                                    <option value="space travel">space travel</option>
+                                
+                                    <option value="travel sound through vacuum">travel sound through vacuum</option>
+                                
+                                    <option value="保护耳朵和减少噪音污染的方法">保护耳朵和减少噪音污染的方法</option>
+                                
+                                    <option value="光合作用与空气">光合作用与空气</option>
+                                
+                                    <option value="力在日常生活中的應用">力在日常生活中的應用</option>
+                                
+                                    <option value="国际空间站">国际空间站</option>
+                                
+                                    <option value="大脑及其功能">大脑及其功能</option>
+                                
+                                    <option value="大脑反应与错觉">大脑反应与错觉</option>
+                                
+                                    <option value="太空探索">太空探索</option>
+                                
+                                    <option value="宇航服组件及功能">宇航服组件及功能</option>
+                                
+                                    <option value="摩擦力及其减少方法">摩擦力及其减少方法</option>
+                                
+                                    <option value="火箭">火箭</option>
+                                
+                                    <option value="眼睛的毛病">眼睛的毛病</option>
+                                
+                                    <option value="神经系统与感觉影响">神经系统与感觉影响</option>
+                                
+                                    <option value="視網膜黃斑部病变">視網膜黃斑部病变</option>
+                                
+                                    <option value="酸和鹼的一些日常應用">酸和鹼的一些日常應用</option>
+                                
+                                    <option value="Effect of Wire Thickness on Resistance">Effect of Wire Thickness on Resistance</option>
+                                
+                                    <option value="Effect of Wire Length on Resistance">Effect of Wire Length on Resistance</option>
+                                
+                                    <option value="Gas Exchange in Plants">Gas Exchange in Plants</option>
+                                
+                                    <option value="Gas Exchange in Plants and Animals">Gas Exchange in Plants and Animals</option>
+                                
+                                    <option value="Stomata and Gas Exchange in Plants">Stomata and Gas Exchange in Plants</option>
+                                
+                                    <option value="Pre-class Preparation">Pre-class Preparation</option>
+                                
+                                    <option value="Destarching and Pre-class Preparation">Destarching and Pre-class Preparation</option>
+                                
+                                    <option value="Pre-class Preparation Assessment">Pre-class Preparation Assessment</option>
+                                
+                                    <option value="Sound Travel Through Different Mediums">Sound Travel Through Different Mediums</option>
+                                
+                                    <option value="Sound Travel Through Vacuum">Sound Travel Through Vacuum</option>
+                                
+                                    <option value="Sound Travel Through Water">Sound Travel Through Water</option>
+                                
+                                    <option value="Sound Travel Through Air">Sound Travel Through Air</option>
+                                
+                                    <option value="Sound Travel in Vacuum">Sound Travel in Vacuum</option>
+                                
+                            </select>
+                        </div>
+                        <div class="col-2 pb-2">
+                            <button type="button" class="btn btn-primary btn-block" onclick="neighbourhoodHighlight({nodes: []});">Reset Selection</button>
+                        </div>
+                    </div>
+                </div>
+            
+            
+              <div id="filter-menu" class="card-header">
+                <div class="row no-gutters">
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'item')"
+                            id="select-item"
+                        >
+                        <option value="">Select a network item</option>
+                        <option value="edge">edge</option>
+                        <option value="node">node</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            onchange="updateFilter(value, 'property')"
+                            id="select-property"
+                        >
+                        <option value="">Select a property...</option>
+                    </select>
+                  </div>
+                  <div class="col-3 pb-2">
+                    <select
+                            class="form-select"
+                            aria-label="Default select example"
+                            id="select-value"
+                        >
+                        <option value="">Select value(s)...</option>
+                    </select>
+                  </div>
+                  <div class="col-1 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="highlightFilter(filter);">Filter</button>
+                  </div>
+                  <div class="col-2 pb-2">
+                    <button type="button" class="btn btn-primary btn-block" onclick="clearFilter(true)">Reset Selection</button>
+                  </div>
+                </div>
+              </div>
+            
+            <div id="mynetwork" class="card-body"></div>
+        </div>
+
+        
+            <div id="loadingBar">
+              <div class="outerBorder">
+                <div id="text">0%</div>
+                <div id="border">
+                  <div id="bar"></div>
+                </div>
+              </div>
+            </div>
+        
+        
+
+        <script type="text/javascript">
+
+              // initialize global variables.
+              var edges;
+              var nodes;
+              var allNodes;
+              var allEdges;
+              var nodeColors;
+              var originalNodes;
+              var network;
+              var container;
+              var options, data;
+              var filter = {
+                  item : '',
+                  property : '',
+                  value : []
+              };
+
+              
+                  new TomSelect("#select-node",{
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      }
+                  });
+              
+
+              
+                  // explicitly using onItemAdd and this function as we need to save multiple values
+                  let updateValueFilter = function() {
+                      return function () {
+                      filter['value'].push(arguments[0])
+                      }
+                  }
+
+                  let valueControl = new TomSelect("#select-value",{
+                      maxItems: null,
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: updateValueFilter()
+                  });
+
+                  let addValues = function() {
+                      return function () {
+                          // clear the current value options and add the selected attribute values
+                          // tom-select handles duplicates
+                          let selectedProperty = arguments[0];
+                          valueControl.clear();
+                          valueControl.clearOptions();
+                          filter['value'] = []
+                          if (filter['item'] === 'node') {
+                              for (let each in allNodes) {
+                                  valueControl.addOption({
+                                      id:allNodes[each][selectedProperty],
+                                      title:allNodes[each][selectedProperty]
+                                  })
+                              }
+                          }
+                          else if (filter['item'] === 'edge') {
+                              for (let each in allEdges) {
+                                  valueControl.addOption({
+                                      id:allEdges[each][selectedProperty],
+                                      title:allEdges[each][selectedProperty]
+                                  })
+                              }
+                          }
+                      }
+                  };
+
+                  let propControl = new TomSelect("#select-property",{
+                      valueField: 'id',
+                      labelField: 'title',
+                      searchField: 'title',
+                      create: false,
+                      sortField: {
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addValues()
+                  });
+
+                  let addProperties = function() {
+                      return function () {
+                          // loops through the selected network item and adds the attributes to dropdown
+                          // tom-select handles duplicates
+                          clearFilter(false)
+                          if (arguments[0] === 'edge') {
+                              for (let each in allEdges) {
+                                  if (allEdges.hasOwnProperty(each)) {
+                                      for (let eachProp in allEdges[each]) {
+                                          if (allEdges[each].hasOwnProperty(eachProp)) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                          else if (arguments[0] === 'node') {
+                              for (let each in allNodes) {
+                                  if (allNodes.hasOwnProperty(each)) {
+                                      for (let eachProp in allNodes[each]) {
+                                          if (allNodes[each].hasOwnProperty(eachProp)
+                                              && (eachProp !== 'hidden' && eachProp !== 'savedLabel'
+                                                  && eachProp !== 'hiddenLabel')) {
+                                              propControl.addOption({id: eachProp, title: eachProp})
+
+                                          }
+                                      }
+                                  }
+                              }
+                          }
+                      }
+                  };
+
+                  let itemControl = new TomSelect("#select-item",{
+                      create: false,
+                      sortField:{
+                          field: "text",
+                          direction: "asc"
+                      },
+                      onItemAdd: addProperties()
+                  });
+
+                  function clearFilter(reset) {
+                      // utility function to clear all the selected filter options
+                      // if reset is set to true, the existing filter will be removed
+                      // else, only the dropdown options are cleared
+                      propControl.clear();
+                      propControl.clearOptions();
+                      valueControl.clear();
+                      valueControl.clearOptions();
+                      filter = {
+                          item : '',
+                          property : '',
+                          value : []
+                      }
+                      if (reset) {
+                          itemControl.clear();
+                          filterHighlight({nodes: []})
+                      }
+                  }
+
+                  function updateFilter(value, key) {
+                      // key could be 'item' or 'property' and value is as selected in dropdown
+                      filter[key] = value
+                  }
+
+              
+
+              // This method is responsible for drawing the graph, returns the drawn network
+              function drawGraph() {
+                  var container = document.getElementById('mynetwork');
+
+                  
+
+                  // parsing and collecting nodes and edges from the python
+                  nodes = new vis.DataSet([{"color": "#4ECDC4", "font": {"color": "white"}, "id": "Accidents and casualties", "label": "Accidents and casualties", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Accidents and casualties\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Acid Rain", "label": "Acid Rain", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Acid Rain\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Acids and Indicators", "label": "Acids and Indicators", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Acids and Indicators\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Acids and alkalis", "label": "Acids and alkalis", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Acids and alkalis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Action and Reaction Forces", "label": "Action and Reaction Forces", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Action and Reaction Forces\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Action and Reaction in Sports and Spacecraft", "label": "Action and Reaction in Sports and Spacecraft", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Action and Reaction in Sports and Spacecraft\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Air Composition Differences", "label": "Air Composition Differences", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Air Composition Differences\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Air Composition and Fire Safety", "label": "Air Composition and Fire Safety", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Air Composition and Fire Safety\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Air Composition and Testing", "label": "Air Composition and Testing", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Air Composition and Testing\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Air Pollution and Health Effects", "label": "Air Pollution and Health Effects", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Air Pollution and Health Effects\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Apollo 11 Mission", "label": "Apollo 11 Mission", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Apollo 11 Mission\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Aquarium Ecology", "label": "Aquarium Ecology", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Aquarium Ecology\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Artificial Respiration", "label": "Artificial Respiration", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Artificial Respiration\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Audible Frequency Range", "label": "Audible Frequency Range", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Audible Frequency Range\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Balance of Carbon Dioxide and Oxygen in Nature", "label": "Balance of Carbon Dioxide and Oxygen in Nature", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Balance of Carbon Dioxide and Oxygen in Nature\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Banning Smoking in Indoor Public Places", "label": "Banning Smoking in Indoor Public Places", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Banning Smoking in Indoor Public Places\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Body Resistance Measurement", "label": "Body Resistance Measurement", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Body Resistance Measurement\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Brain\u0027s Function and Main Parts", "label": "Brain\u0027s Function and Main Parts", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Brain\u0027s Function and Main Parts\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Breathing Model", "label": "Breathing Model", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Breathing Model\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Breathing Underwater", "label": "Breathing Underwater", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Breathing Underwater\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Burning", "label": "Burning", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Burning\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Burning of Candle in Oxygen", "label": "Burning of Candle in Oxygen", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Burning of Candle in Oxygen\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Cancer-Causing Compounds in Cigarette Smoke", "label": "Cancer-Causing Compounds in Cigarette Smoke", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Cancer-Causing Compounds in Cigarette Smoke\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Carbon Dioxide", "label": "Carbon Dioxide", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Carbon Dioxide\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Chemistry Test", "label": "Chemistry Test", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Chemistry Test\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Chemistry Test Answers", "label": "Chemistry Test Answers", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Chemistry Test Answers\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Chemistry and Biology", "label": "Chemistry and Biology", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Chemistry and Biology\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Chemistry and Environmental Science", "label": "Chemistry and Environmental Science", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Chemistry and Environmental Science\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Choosing Suitable Fuses", "label": "Choosing Suitable Fuses", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Choosing Suitable Fuses\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Christmas Light Bulb Circuit", "label": "Christmas Light Bulb Circuit", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Christmas Light Bulb Circuit\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Cigarette Smoke Inhalation", "label": "Cigarette Smoke Inhalation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Cigarette Smoke Inhalation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Circuit Breaker Ratings", "label": "Circuit Breaker Ratings", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Circuit Breaker Ratings\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Circuit Design", "label": "Circuit Design", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Circuit Design\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Circuit Diagram", "label": "Circuit Diagram", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Circuit Diagram\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Circuit Diagram Drawing", "label": "Circuit Diagram Drawing", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Circuit Diagram Drawing\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Circuit Identification", "label": "Circuit Identification", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Circuit Identification\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Close-Up Observation", "label": "Close-Up Observation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Close-Up Observation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Colour blindness", "label": "Colour blindness", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Colour blindness\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Colour blindness Test", "label": "Colour blindness Test", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Colour blindness Test\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Colour-blindness", "label": "Colour-blindness", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Colour-blindness\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Common Acids and alkalis", "label": "Common Acids and alkalis", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Common Acids and alkalis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Comparison of Fuses with Different Ratings", "label": "Comparison of Fuses with Different Ratings", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Comparison of Fuses with Different Ratings\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Comparison of Metal Wire Resistances", "label": "Comparison of Metal Wire Resistances", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Comparison of Metal Wire Resistances\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Concentration of Acids and Alkalis", "label": "Concentration of Acids and Alkalis", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Concentration of Acids and Alkalis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Corridor Lighting System", "label": "Corridor Lighting System", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Corridor Lighting System\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Creating the greenhouse effect", "label": "Creating the greenhouse effect", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Creating the greenhouse effect\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Current Measurement Methods", "label": "Current Measurement Methods", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Current Measurement Methods\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Cyclic Shifts", "label": "Cyclic Shifts", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Cyclic Shifts\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Daily life inside a spacecraft", "label": "Daily life inside a spacecraft", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Daily life inside a spacecraft\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Designing Devices", "label": "Designing Devices", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Designing Devices\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Double-Insulation", "label": "Double-Insulation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Double-Insulation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Dry Cell Connection Effects on Voltage", "label": "Dry Cell Connection Effects on Voltage", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Dry Cell Connection Effects on Voltage\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Ear Damage from Loud Noise Exposure", "label": "Ear Damage from Loud Noise Exposure", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Ear Damage from Loud Noise Exposure\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effect of Resistance on Electric Current", "label": "Effect of Resistance on Electric Current", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effect of Resistance on Electric Current\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Acid Rain", "label": "Effects of Acid Rain", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Acid Rain\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Acids on Metals and Building Materials", "label": "Effects of Acids on Metals and Building Materials", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Acids on Metals and Building Materials\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Alcohol and Drugs on Us", "label": "Effects of Alcohol and Drugs on Us", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Alcohol and Drugs on Us\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Current", "label": "Effects of Current", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Current\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Drugs on Our Senses", "label": "Effects of Drugs on Our Senses", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Drugs on Our Senses\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Force on Motion", "label": "Effects of Force on Motion", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Force on Motion\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Noise on Health", "label": "Effects of Noise on Health", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Noise on Health\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Smoking on Health", "label": "Effects of Smoking on Health", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Smoking on Health\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Effects of Smoking on Lungs", "label": "Effects of Smoking on Lungs", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Effects of Smoking on Lungs\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Cars", "label": "Electric Cars", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Cars\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Circuit Analogy with Water Pipe System", "label": "Electric Circuit Analogy with Water Pipe System", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Circuit Analogy with Water Pipe System\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Current", "label": "Electric Current", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Current\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Current and Safety Devices", "label": "Electric Current and Safety Devices", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Current and Safety Devices\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Eel", "label": "Electric Eel", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Eel\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Heater in Country Park", "label": "Electric Heater in Country Park", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Heater in Country Park\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Iron Power", "label": "Electric Iron Power", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Iron Power\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electric Wire Thickness", "label": "Electric Wire Thickness", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electric Wire Thickness\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Appliances Power Consumption", "label": "Electrical Appliances Power Consumption", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Appliances Power Consumption\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Circuits", "label": "Electrical Circuits", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Circuits\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Circuits and Appliances", "label": "Electrical Circuits and Appliances", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Circuits and Appliances\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Circuits and Voltage", "label": "Electrical Circuits and Voltage", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Circuits and Voltage\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Conductivity and Circuits", "label": "Electrical Conductivity and Circuits", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Conductivity and Circuits\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Resistance", "label": "Electrical Resistance", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Resistance\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Safety", "label": "Electrical Safety", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Safety\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical Wiring and Safety", "label": "Electrical Wiring and Safety", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical Wiring and Safety\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrical circuits", "label": "Electrical circuits", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrical circuits\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electricity", "label": "Electricity", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electricity\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electricity Cost Calculation", "label": "Electricity Cost Calculation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electricity Cost Calculation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electricity Flow", "label": "Electricity Flow", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electricity Flow\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electricity and Circuit Completion", "label": "Electricity and Circuit Completion", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electricity and Circuit Completion\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electricity and Circuit Protection", "label": "Electricity and Circuit Protection", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electricity and Circuit Protection\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrochemical Cells", "label": "Electrochemical Cells", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrochemical Cells\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electrochemistry", "label": "Electrochemistry", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electrochemistry\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electromagnets in Cranes", "label": "Electromagnets in Cranes", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electromagnets in Cranes\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Electronic Cigarettes", "label": "Electronic Cigarettes", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Electronic Cigarettes\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Energy Content of Food", "label": "Energy Content of Food", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Energy Content of Food\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Energy Obtention and Utilization", "label": "Energy Obtention and Utilization", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Energy Obtention and Utilization\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Exhaled Air Experiment", "label": "Exhaled Air Experiment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Exhaled Air Experiment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Experiment Procedures and Analysis", "label": "Experiment Procedures and Analysis", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Experiment Procedures and Analysis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Eye Anatomy and Safety", "label": "Eye Anatomy and Safety", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Eye Anatomy and Safety\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Eye Anatomy and Vision", "label": "Eye Anatomy and Vision", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Eye Anatomy and Vision\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Eye Conditions and Care", "label": "Eye Conditions and Care", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Eye Conditions and Care\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Eye care", "label": "Eye care", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Eye care\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Fire Extinguishers", "label": "Fire Extinguishers", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Fire Extinguishers\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Fire Extinguishing Mechanisms", "label": "Fire Extinguishing Mechanisms", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Fire Extinguishing Mechanisms\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Fire Safety", "label": "Fire Safety", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Fire Safety\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Fire and Combustion", "label": "Fire and Combustion", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Fire and Combustion\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Fireproof Materials in Furniture", "label": "Fireproof Materials in Furniture", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Fireproof Materials in Furniture\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Fish Care", "label": "Fish Care", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Fish Care\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Flipped Classroom", "label": "Flipped Classroom", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Flipped Classroom\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Food Chains", "label": "Food Chains", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Food Chains\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Food Preservation Using Acids", "label": "Food Preservation Using Acids", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Food Preservation Using Acids\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Force and Motion", "label": "Force and Motion", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Force and Motion\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Force of Gravity", "label": "Force of Gravity", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Force of Gravity\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Forces Between Objects", "label": "Forces Between Objects", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Forces Between Objects\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Friction", "label": "Friction", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Friction\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Gas Exchange in Air Sacs", "label": "Gas Exchange in Air Sacs", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Gas Exchange in Air Sacs\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Gas Exchange in Lungs", "label": "Gas Exchange in Lungs", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Gas Exchange in Lungs\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Gas Tests and Air Composition", "label": "Gas Tests and Air Composition", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Gas Tests and Air Composition\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Gases and Their Uses", "label": "Gases and Their Uses", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Gases and Their Uses\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Graphic Warnings on Cigarette Packets", "label": "Graphic Warnings on Cigarette Packets", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Graphic Warnings on Cigarette Packets\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Greenhouse Effect", "label": "Greenhouse Effect", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Greenhouse Effect\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Hands-on activities", "label": "Hands-on activities", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Hands-on activities\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Harmful Effects of Acid Rain", "label": "Harmful Effects of Acid Rain", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Harmful Effects of Acid Rain\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Harmful Effects of Global Warming", "label": "Harmful Effects of Global Warming", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Harmful Effects of Global Warming\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Hearing Protection", "label": "Hearing Protection", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Hearing Protection\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Heat Transfer", "label": "Heat Transfer", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Heat Transfer\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Heat transfer by radiation and conduction", "label": "Heat transfer by radiation and conduction", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Heat transfer by radiation and conduction\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Heating Effect of Current", "label": "Heating Effect of Current", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Heating Effect of Current\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Heating and Magnetic Effects of Current", "label": "Heating and Magnetic Effects of Current", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Heating and Magnetic Effects of Current\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Hiccups", "label": "Hiccups", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Hiccups\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "History of Space Exploration", "label": "History of Space Exploration", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: History of Space Exploration\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Holding Breath Risks", "label": "Holding Breath Risks", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Holding Breath Risks\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "How is an image formed in the eye?", "label": "How is an image formed in the eye?", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: How is an image formed in the eye?\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Human Ear Structure and Function", "label": "Human Ear Structure and Function", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Human Ear Structure and Function\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Human Eye Structure and Function", "label": "Human Eye Structure and Function", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Human Eye Structure and Function\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Human Hearing", "label": "Human Hearing", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Human Hearing\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Hydro-Rocket Scientific Investigation", "label": "Hydro-Rocket Scientific Investigation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Hydro-Rocket Scientific Investigation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Illusions", "label": "Illusions", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Illusions\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Increasing Friction", "label": "Increasing Friction", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Increasing Friction\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "International cooperation and challenges in space exploration", "label": "International cooperation and challenges in space ...", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: International cooperation and challenges in space exploration\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Internet", "label": "Internet", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Internet\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Lens Experiment", "label": "Lens Experiment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Lens Experiment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Lenses and Light", "label": "Lenses and Light", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Lenses and Light\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Light Bulbs and Their Characteristics", "label": "Light Bulbs and Their Characteristics", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Light Bulbs and Their Characteristics\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Lighting Bulbs and Their Characteristics", "label": "Lighting Bulbs and Their Characteristics", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Lighting Bulbs and Their Characteristics\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Lightning Safety in Vehicles", "label": "Lightning Safety in Vehicles", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Lightning Safety in Vehicles\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Long term effects of smoking on health", "label": "Long term effects of smoking on health", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Long term effects of smoking on health\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Lung Structure", "label": "Lung Structure", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Lung Structure\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Maglev Train", "label": "Maglev Train", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Maglev Train\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Magnetic Effect of Current", "label": "Magnetic Effect of Current", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Magnetic Effect of Current\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Magnetic Levitation", "label": "Magnetic Levitation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Magnetic Levitation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Morse Code Circuit Game", "label": "Morse Code Circuit Game", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Morse Code Circuit Game\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Morse Code Hands-on Activity", "label": "Morse Code Hands-on Activity", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Morse Code Hands-on Activity\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Morse code", "label": "Morse code", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Morse code\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Neutralization Reaction", "label": "Neutralization Reaction", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Neutralization Reaction\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Noise Pollution", "label": "Noise Pollution", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Noise Pollution\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Operating Voltage of Electrical Appliances", "label": "Operating Voltage of Electrical Appliances", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Operating Voltage of Electrical Appliances\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Oxidation Numbers in Reactions", "label": "Oxidation Numbers in Reactions", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Oxidation Numbers in Reactions\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Oxygen Content in Air", "label": "Oxygen Content in Air", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Oxygen Content in Air\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Paper Airplane Launch", "label": "Paper Airplane Launch", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Paper Airplane Launch\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Paper Conservation", "label": "Paper Conservation", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Paper Conservation\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Parachute Experiment", "label": "Parachute Experiment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Parachute Experiment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Parallel Circuit", "label": "Parallel Circuit", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Parallel Circuit\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Passive Smoking", "label": "Passive Smoking", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Passive Smoking\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Photosynthesis", "label": "Photosynthesis", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Photosynthesis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Photosynthesis and Aquatic Ecosystems", "label": "Photosynthesis and Aquatic Ecosystems", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Photosynthesis and Aquatic Ecosystems\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Photosynthesis and Food Chains", "label": "Photosynthesis and Food Chains", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Photosynthesis and Food Chains\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Photosynthesis and Respiration", "label": "Photosynthesis and Respiration", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Photosynthesis and Respiration\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Photosynthesis and Starch Testing", "label": "Photosynthesis and Starch Testing", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Photosynthesis and Starch Testing\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Plant Biology and Respiration", "label": "Plant Biology and Respiration", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Plant Biology and Respiration\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Potential Dangers of Using Electricity", "label": "Potential Dangers of Using Electricity", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Potential Dangers of Using Electricity\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Preparation assessment", "label": "Preparation assessment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Preparation assessment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Preventive measures against acid rain", "label": "Preventive measures against acid rain", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Preventive measures against acid rain\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Protecting Hearing from Noise", "label": "Protecting Hearing from Noise", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Protecting Hearing from Noise\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Protecting our ears", "label": "Protecting our ears", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Protecting our ears\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Public facilities for the visually-impaired", "label": "Public facilities for the visually-impaired", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Public facilities for the visually-impaired\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Pupil Size Change in Dim Light", "label": "Pupil Size Change in Dim Light", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Pupil Size Change in Dim Light\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Rabbit Disappearance Experiment", "label": "Rabbit Disappearance Experiment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Rabbit Disappearance Experiment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Reaction Time", "label": "Reaction Time", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Reaction Time\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Redox Reactions", "label": "Redox Reactions", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Redox Reactions\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Reducing Friction", "label": "Reducing Friction", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Reducing Friction\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Resistor Color Coding", "label": "Resistor Color Coding", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Resistor Color Coding\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Resistor Resistance", "label": "Resistor Resistance", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Resistor Resistance\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Respiration", "label": "Respiration", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Respiration\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Respiration and Gaseous Exchange", "label": "Respiration and Gaseous Exchange", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Respiration and Gaseous Exchange\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Respiratory Diseases", "label": "Respiratory Diseases", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Respiratory Diseases\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Respiratory Experiment and Gas Exchange", "label": "Respiratory Experiment and Gas Exchange", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Respiratory Experiment and Gas Exchange\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Respiratory System Anatomy", "label": "Respiratory System Anatomy", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Respiratory System Anatomy\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Respiratory System and Experiment Setup", "label": "Respiratory System and Experiment Setup", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Respiratory System and Experiment Setup\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Rocket Design", "label": "Rocket Design", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Rocket Design\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Rocket Launch Principles", "label": "Rocket Launch Principles", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Rocket Launch Principles\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Rocket Propulsion", "label": "Rocket Propulsion", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Rocket Propulsion\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Role Play on Smoking Ban", "label": "Role Play on Smoking Ban", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Role Play on Smoking Ban\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Rusting and Corrosion of Iron", "label": "Rusting and Corrosion of Iron", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Rusting and Corrosion of Iron\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Safety precautions in handling concentrated strong acids and alkalis", "label": "Safety precautions in handling concentrated strong...", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Safety precautions in handling concentrated strong acids and alkalis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Seeing Objects at Different Distances", "label": "Seeing Objects at Different Distances", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Seeing Objects at Different Distances\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Self and Peer Assessment", "label": "Self and Peer Assessment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Self and Peer Assessment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sense Organs", "label": "Sense Organs", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sense Organs\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sense of smell", "label": "Sense of smell", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sense of smell\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sense organs and senses", "label": "Sense organs and senses", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sense organs and senses\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sensing the environment", "label": "Sensing the environment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sensing the environment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sensory System", "label": "Sensory System", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sensory System\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Series Circuit", "label": "Series Circuit", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Series Circuit\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Shenzhou 5 Mission", "label": "Shenzhou 5 Mission", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Shenzhou 5 Mission\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Shenzhou 7 Spacecraft", "label": "Shenzhou 7 Spacecraft", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Shenzhou 7 Spacecraft\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Short Circuit Experiment", "label": "Short Circuit Experiment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Short Circuit Experiment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sound Production", "label": "Sound Production", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sound Production\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sound Production and Frequency", "label": "Sound Production and Frequency", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sound Production and Frequency\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sound Production and Travel", "label": "Sound Production and Travel", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sound Production and Travel\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Sound Travel", "label": "Sound Travel", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Sound Travel\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Space Shuttle", "label": "Space Shuttle", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Space Shuttle\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Space exploration and its benefits", "label": "Space exploration and its benefits", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Space exploration and its benefits\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Spacecraft Landing Process", "label": "Spacecraft Landing Process", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Spacecraft Landing Process\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Spacesuit Components and Functions", "label": "Spacesuit Components and Functions", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Spacesuit Components and Functions\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Spacesuit Functions and Comparisons", "label": "Spacesuit Functions and Comparisons", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Spacesuit Functions and Comparisons\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Starch Testing in Plants", "label": "Starch Testing in Plants", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Starch Testing in Plants\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Stomata and Guard Cells", "label": "Stomata and Guard Cells", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Stomata and Guard Cells\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Superconductors", "label": "Superconductors", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Superconductors\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Taste and Sensory Perception in the Mouth", "label": "Taste and Sensory Perception in the Mouth", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Taste and Sensory Perception in the Mouth\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Temperature Change Measurement", "label": "Temperature Change Measurement", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Temperature Change Measurement\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Touch", "label": "Touch", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Touch\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Travel Abroad", "label": "Travel Abroad", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Travel Abroad\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Treatment of accidents and emergencies involving acids and alkalis", "label": "Treatment of accidents and emergencies involving a...", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Treatment of accidents and emergencies involving acids and alkalis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Troubleshooting Circuit Issues", "label": "Troubleshooting Circuit Issues", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Troubleshooting Circuit Issues\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Vision Disorders", "label": "Vision Disorders", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Vision Disorders\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Voltage", "label": "Voltage", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Voltage\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Volume Control Using Rheostat", "label": "Volume Control Using Rheostat", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Volume Control Using Rheostat\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Water Heating Experiment", "label": "Water Heating Experiment", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Water Heating Experiment\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Water Plant Photosynthesis and Gas Bubbles", "label": "Water Plant Photosynthesis and Gas Bubbles", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Water Plant Photosynthesis and Gas Bubbles\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Wiring a three-pin plug", "label": "Wiring a three-pin plug", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Wiring a three-pin plug\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Working Principle of Common Electrical Appliances", "label": "Working Principle of Common Electrical Appliances", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Working Principle of Common Electrical Appliances\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "Working outside the spacecraft", "label": "Working outside the spacecraft", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: Working outside the spacecraft\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "effect resistance wire", "label": "effect resistance wire", "level": 1, "shape": "box", "size": 34, "title": "Normalized Topic: effect resistance wire\n(2 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "exchange gas plants", "label": "exchange gas plants", "level": 1, "shape": "box", "size": 36, "title": "Normalized Topic: exchange gas plants\n(3 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "pH Measurement and Analysis", "label": "pH Measurement and Analysis", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: pH Measurement and Analysis\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "pH value change when dilute sodium hydroxide solution is added to dilute hydrochloric acid", "label": "pH value change when dilute sodium hydroxide solut...", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: pH value change when dilute sodium hydroxide solution is added to dilute hydrochloric acid\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "preparation pre class", "label": "preparation pre class", "level": 1, "shape": "box", "size": 36, "title": "Normalized Topic: preparation pre class\n(3 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "space travel", "label": "space travel", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: space travel\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "travel sound through vacuum", "label": "travel sound through vacuum", "level": 1, "shape": "box", "size": 40, "title": "Normalized Topic: travel sound through vacuum\n(5 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u4fdd\u62a4\u8033\u6735\u548c\u51cf\u5c11\u566a\u97f3\u6c61\u67d3\u7684\u65b9\u6cd5", "label": "\u4fdd\u62a4\u8033\u6735\u548c\u51cf\u5c11\u566a\u97f3\u6c61\u67d3\u7684\u65b9\u6cd5", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u4fdd\u62a4\u8033\u6735\u548c\u51cf\u5c11\u566a\u97f3\u6c61\u67d3\u7684\u65b9\u6cd5\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u5149\u5408\u4f5c\u7528\u4e0e\u7a7a\u6c14", "label": "\u5149\u5408\u4f5c\u7528\u4e0e\u7a7a\u6c14", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u5149\u5408\u4f5c\u7528\u4e0e\u7a7a\u6c14\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u529b\u5728\u65e5\u5e38\u751f\u6d3b\u4e2d\u7684\u61c9\u7528", "label": "\u529b\u5728\u65e5\u5e38\u751f\u6d3b\u4e2d\u7684\u61c9\u7528", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u529b\u5728\u65e5\u5e38\u751f\u6d3b\u4e2d\u7684\u61c9\u7528\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u56fd\u9645\u7a7a\u95f4\u7ad9", "label": "\u56fd\u9645\u7a7a\u95f4\u7ad9", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u56fd\u9645\u7a7a\u95f4\u7ad9\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u5927\u8111\u53ca\u5176\u529f\u80fd", "label": "\u5927\u8111\u53ca\u5176\u529f\u80fd", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u5927\u8111\u53ca\u5176\u529f\u80fd\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u5927\u8111\u53cd\u5e94\u4e0e\u9519\u89c9", "label": "\u5927\u8111\u53cd\u5e94\u4e0e\u9519\u89c9", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u5927\u8111\u53cd\u5e94\u4e0e\u9519\u89c9\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u592a\u7a7a\u63a2\u7d22", "label": "\u592a\u7a7a\u63a2\u7d22", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u592a\u7a7a\u63a2\u7d22\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u5b87\u822a\u670d\u7ec4\u4ef6\u53ca\u529f\u80fd", "label": "\u5b87\u822a\u670d\u7ec4\u4ef6\u53ca\u529f\u80fd", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u5b87\u822a\u670d\u7ec4\u4ef6\u53ca\u529f\u80fd\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u6469\u64e6\u529b\u53ca\u5176\u51cf\u5c11\u65b9\u6cd5", "label": "\u6469\u64e6\u529b\u53ca\u5176\u51cf\u5c11\u65b9\u6cd5", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u6469\u64e6\u529b\u53ca\u5176\u51cf\u5c11\u65b9\u6cd5\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u706b\u7bad", "label": "\u706b\u7bad", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u706b\u7bad\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u773c\u775b\u7684\u6bdb\u75c5", "label": "\u773c\u775b\u7684\u6bdb\u75c5", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u773c\u775b\u7684\u6bdb\u75c5\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u795e\u7ecf\u7cfb\u7edf\u4e0e\u611f\u89c9\u5f71\u54cd", "label": "\u795e\u7ecf\u7cfb\u7edf\u4e0e\u611f\u89c9\u5f71\u54cd", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u795e\u7ecf\u7cfb\u7edf\u4e0e\u611f\u89c9\u5f71\u54cd\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u8996\u7db2\u819c\u9ec3\u6591\u90e8\u75c5\u53d8", "label": "\u8996\u7db2\u819c\u9ec3\u6591\u90e8\u75c5\u53d8", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u8996\u7db2\u819c\u9ec3\u6591\u90e8\u75c5\u53d8\n(1 original topics)"}, {"color": "#4ECDC4", "font": {"color": "white"}, "id": "\u9178\u548c\u9e7c\u7684\u4e00\u4e9b\u65e5\u5e38\u61c9\u7528", "label": "\u9178\u548c\u9e7c\u7684\u4e00\u4e9b\u65e5\u5e38\u61c9\u7528", "level": 1, "shape": "box", "size": 32, "title": "Normalized Topic: \u9178\u548c\u9e7c\u7684\u4e00\u4e9b\u65e5\u5e38\u61c9\u7528\n(1 original topics)"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Effect of Wire Thickness on Resistance", "label": "Effect of Wire Thickness on Resistance", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Effect of Wire Thickness on Resistance"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Effect of Wire Length on Resistance", "label": "Effect of Wire Length on Resistance", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Effect of Wire Length on Resistance"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Gas Exchange in Plants", "label": "Gas Exchange in Plants", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Gas Exchange in Plants"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Gas Exchange in Plants and Animals", "label": "Gas Exchange in Plants and Animals", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Gas Exchange in Plants and Animals"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Stomata and Gas Exchange in Plants", "label": "Stomata and Gas Exchange in Plants", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Stomata and Gas Exchange in Plants"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Pre-class Preparation", "label": "Pre-class Preparation", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Pre-class Preparation"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Destarching and Pre-class Preparation", "label": "Destarching and Pre-class Preparation", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Destarching and Pre-class Preparation"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Pre-class Preparation Assessment", "label": "Pre-class Preparation Assessment", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Pre-class Preparation Assessment"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Sound Travel Through Different Mediums", "label": "Sound Travel Through Different Mediums", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Sound Travel Through Different Mediums"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Sound Travel Through Vacuum", "label": "Sound Travel Through Vacuum", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Sound Travel Through Vacuum"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Sound Travel Through Water", "label": "Sound Travel Through Water", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Sound Travel Through Water"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Sound Travel Through Air", "label": "Sound Travel Through Air", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Sound Travel Through Air"}, {"color": "#95E1D3", "font": {"color": "white"}, "id": "Sound Travel in Vacuum", "label": "Sound Travel in Vacuum", "level": 2, "shape": "dot", "size": 15, "title": "Original Topic: Sound Travel in Vacuum"}]);
+                  edges = new vis.DataSet([{"arrows": "to", "color": "#4ECDC4", "from": "effect resistance wire", "to": "Effect of Wire Thickness on Resistance", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "effect resistance wire", "to": "Effect of Wire Length on Resistance", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "exchange gas plants", "to": "Gas Exchange in Plants", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "exchange gas plants", "to": "Gas Exchange in Plants and Animals", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "exchange gas plants", "to": "Stomata and Gas Exchange in Plants", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "preparation pre class", "to": "Pre-class Preparation", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "preparation pre class", "to": "Destarching and Pre-class Preparation", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "preparation pre class", "to": "Pre-class Preparation Assessment", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "travel sound through vacuum", "to": "Sound Travel Through Different Mediums", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "travel sound through vacuum", "to": "Sound Travel Through Vacuum", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "travel sound through vacuum", "to": "Sound Travel Through Water", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "travel sound through vacuum", "to": "Sound Travel Through Air", "width": 1}, {"arrows": "to", "color": "#4ECDC4", "from": "travel sound through vacuum", "to": "Sound Travel in Vacuum", "width": 1}]);
+
+                  nodeColors = {};
+                  allNodes = nodes.get({ returnType: "Object" });
+                  for (nodeId in allNodes) {
+                    nodeColors[nodeId] = allNodes[nodeId].color;
+                  }
+                  allEdges = edges.get({ returnType: "Object" });
+                  // adding nodes and edges to the graph
+                  data = {nodes: nodes, edges: edges};
+
+                  var options = {"physics": {"enabled": true, "hierarchicalRepulsion": {"centralGravity": 0.0, "springLength": 150, "springConstant": 0.01, "nodeDistance": 200, "damping": 0.09}, "solver": "hierarchicalRepulsion"}, "layout": {"hierarchical": {"enabled": true, "levelSeparation": 200, "nodeSpacing": 150, "treeSpacing": 200, "direction": "UD", "sortMethod": "directed"}}, "interaction": {"navigationButtons": true, "keyboard": true, "hover": true}, "nodes": {"font": {"size": 14}}, "edges": {"arrows": {"to": {"enabled": true, "scaleFactor": 0.5}}, "smooth": {"type": "cubicBezier"}}};
+
+                  
+
+
+                  
+
+                  network = new vis.Network(container, data, options);
+
+                  
+
+                  
+                    network.on("selectNode", neighbourhoodHighlight);
+                  
+
+                  
+
+
+                  
+                      network.on("stabilizationProgress", function(params) {
+                          document.getElementById('loadingBar').removeAttribute("style");
+                          var maxWidth = 496;
+                          var minWidth = 20;
+                          var widthFactor = params.iterations/params.total;
+                          var width = Math.max(minWidth,maxWidth * widthFactor);
+                          document.getElementById('bar').style.width = width + 'px';
+                          document.getElementById('text').innerHTML = Math.round(widthFactor*100) + '%';
+                      });
+                      network.once("stabilizationIterationsDone", function() {
+                          document.getElementById('text').innerHTML = '100%';
+                          document.getElementById('bar').style.width = '496px';
+                          document.getElementById('loadingBar').style.opacity = 0;
+                          // really clean the dom element
+                          setTimeout(function () {document.getElementById('loadingBar').style.display = 'none';}, 500);
+                      });
+                  
+
+                  return network;
+
+              }
+              drawGraph();
+        </script>
+    </body>
+</html>

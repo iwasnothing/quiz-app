@@ -122,7 +122,7 @@ export default function QuizDNA({ onGenerate }: QuizDNAProps) {
         </div>
         {isSearchFocused && filteredSuggestions.length > 0 && (
           <div className="max-h-60 overflow-y-auto rounded-lg border border-white/10 bg-zinc-900/80 py-1">
-            {filteredSuggestions.slice(0, 20).map((t) => (
+            {filteredSuggestions.map((t) => (
               <button
                 key={t}
                 type="button"
@@ -136,11 +136,6 @@ export default function QuizDNA({ onGenerate }: QuizDNAProps) {
                 {t}
               </button>
             ))}
-            {filteredSuggestions.length > 20 && (
-              <div className="px-3 py-2 text-xs text-zinc-500">
-                Showing 20 of {filteredSuggestions.length} topics. Type to filter...
-              </div>
-            )}
           </div>
         )}
       </div>

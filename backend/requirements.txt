@@ -5,6 +5,7 @@ pydantic
 python-dotenv
 requests
 numpy
+scikit-learn
 langchain
 langchain-core
 langchain-community
@@ -20,3 +21,5 @@ python-docx
 unstructured
 python-pptx
 markitdown[all]
+networkx
+pyvis

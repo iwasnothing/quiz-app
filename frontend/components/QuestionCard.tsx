@@ -24,6 +24,7 @@ export default function QuestionCard({ question, index, onRefine, onReroll, onDe
   const [hover, setHover] = useState(false);
   const [editing, setEditing] = useState(false);
   const [text, setText] = useState(question.question_text);
+  const [showAnswer, setShowAnswer] = useState(false);
 
   const handleBlur = () => {
     setEditing(false);
@@ -80,6 +81,39 @@ export default function QuestionCard({ question, index, onRefine, onReroll, onDe
                 </li>
               ))}
             </ul>
+          )}
+
+          {/* Answer Section */}
+          {question.correct_answer && (
+            <div className="mt-4">
+              <button
+                type="button"
+                onClick={() => setShowAnswer(!showAnswer)}
+                className="flex items-center gap-1.5 text-xs text-violet-400 hover:text-violet-300 transition"
+              >
+                <svg
+                  className={`h-4 w-4 transition-transform ${showAnswer ? "rotate-90" : ""}`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+                {showAnswer ? "Hide Answer" : "Show Answer"}
+              </button>
+              {showAnswer && (
+                <div className="mt-2 rounded-lg bg-emerald-500/10 border border-emerald-500/20 p-3">
+                  <div className="text-xs font-medium text-emerald-400 mb-1">Correct Answer:</div>
+                  <div className="text-sm text-emerald-100">{question.correct_answer}</div>
+                  {question.marking_rubric && (
+                    <>
+                      <div className="text-xs font-medium text-emerald-400 mt-3 mb-1">Marking Rubric:</div>
+                      <div className="text-sm text-zinc-300">{question.marking_rubric}</div>
+                    </>
+                  )}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>
